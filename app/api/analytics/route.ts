@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { currencyOrDefault } from "@/lib/currency";
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import {
   startOfDay,
   subDays,

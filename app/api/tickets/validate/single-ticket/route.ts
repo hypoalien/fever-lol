@@ -1,6 +1,6 @@
 // app/api/tickets/validate/route.ts
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 
 export async function POST(req: Request) {
   try {

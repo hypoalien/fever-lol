@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import { ObjectId } from "mongodb";
 
 export async function POST(req: Request) {

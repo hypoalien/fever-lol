@@ -1,6 +1,6 @@
 // app/api/payment-config/route.ts
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import { ObjectId } from "mongodb";
 import crypto from "crypto";
 

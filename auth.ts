@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Email from "next-auth/providers/nodemailer";
 import Google from "next-auth/providers/google";
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import magicLinkTemplate from "@/lib/email/magic-link-email";
 import { Adapter } from "next-auth/adapters";
