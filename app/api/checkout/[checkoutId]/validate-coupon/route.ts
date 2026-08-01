@@ -1,145 +1,140 @@
-// app/api/checkout/[checkoutId]/validate-coupon/route.ts
-
 import { ObjectId } from "mongodb";
+import { z } from "zod";
+
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
+import {
+  isExpired,
+  totalsForCheckout,
+  type StoredCheckout,
+} from "@/lib/checkout";
+import { discountFor, type PromoLike } from "@/lib/pricing";
 
-interface RequestBody {
-  eventId: string;
-  couponCode: string;
-}
+/**
+ * Apply a promo code to a checkout.
+ *
+ * Two changes from the original: the discount is computed against the prices
+ * stored on the checkout rather than a cart total supplied by the browser, and
+ * the endpoint no longer demands a session — ticket buyers are anonymous, so
+ * requiring `auth()` meant coupons could never be redeemed by an actual buyer.
+ */
 
-interface PromoCode {
-  code: string;
-  discountType: "flat" | "percent";
-  discountValue: number;
-  minOrderValue: number;
-}
+const BodySchema = z.object({
+  couponCode: z.string().trim().min(1).max(64),
+});
 
 export async function POST(
   req: Request,
   { params }: { params: { checkoutId: string } }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return new Response("Unauthorized", { status: 403 });
+    const { checkoutId } = params;
+    if (!ObjectId.isValid(checkoutId)) {
+      return Response.json({ error: "Invalid checkout id" }, { status: 400 });
     }
 
-    // Get checkout ID from params
-    const checkoutId = params.checkoutId;
-    if (!checkoutId || typeof checkoutId !== "string") {
-      return new Response("Invalid checkout ID", { status: 400 });
+    const parsed = BodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return Response.json(
+        { success: false, message: "A coupon code is required" },
+        { status: 400 }
+      );
     }
-
-    // Parse request body
-    const body: RequestBody = await req.json();
-    const { eventId, couponCode } = body;
-
-    if (!eventId || !couponCode) {
-      return new Response("Missing required fields", { status: 400 });
-    }
+    const couponCode = parsed.data.couponCode;
 
     const client = await db;
+    const database = client.db();
 
-    // Fetch checkout details
-    const checkouts = client.db().collection("checkouts");
-    const checkout = await checkouts.findOne({
-      _id: new ObjectId(checkoutId),
-    });
+    const checkout = (await database
+      .collection("checkouts")
+      .findOne({ _id: new ObjectId(checkoutId) })) as StoredCheckout | null;
 
-    if (!checkout) {
-      return new Response("Checkout not found", { status: 404 });
+    if (!checkout || !Array.isArray(checkout.items)) {
+      return Response.json(
+        { success: false, message: "Checkout not found" },
+        { status: 404 }
+      );
+    }
+    if (checkout.status === "paid") {
+      return Response.json(
+        { success: false, message: "This checkout has already been paid" },
+        { status: 409 }
+      );
+    }
+    if (isExpired(checkout)) {
+      return Response.json(
+        { success: false, message: "This checkout has expired" },
+        { status: 410 }
+      );
     }
 
-    // Calculate cart total
-    const cartTotal = checkout.cart.reduce((sum: number, item: any) => {
-      return sum + item.price * item.quantity;
-    }, 0);
-
-    // Fetch event details
-    const events = client.db().collection("events");
-    const event = await events.findOne({
-      _id: new ObjectId(eventId),
-    });
-
+    // The event is the source of truth for which codes exist.
+    const event = await database
+      .collection("events")
+      .findOne({ _id: checkout.eventId as ObjectId });
     if (!event) {
-      return new Response("Event not found", { status: 404 });
+      return Response.json(
+        { success: false, message: "Event not found" },
+        { status: 404 }
+      );
     }
 
-    // Find matching promo code
-    const promoCode = event.promoCodes?.find(
-      (promo: PromoCode) =>
-        promo.code.toLowerCase() === couponCode.toLowerCase()
+    const promo: PromoLike | undefined = (event.promoCodes ?? []).find(
+      (p: PromoLike) => p.code?.toLowerCase() === couponCode.toLowerCase()
     );
 
-    if (!promoCode) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Invalid coupon code",
-        }),
+    if (!promo) {
+      return Response.json(
+        { success: false, message: "Invalid coupon code" },
         { status: 400 }
       );
     }
 
-    // Validate minimum order value
-    if (cartTotal < promoCode.minOrderValue) {
-      return new Response(
-        JSON.stringify({
+    // Check the minimum against the subtotal before deciding it applies, so we
+    // can tell the buyer *why* a valid code didn't take.
+    const subtotalMinor = checkout.subtotalMinor;
+    const discountMinor = discountFor(subtotalMinor, promo, checkout.currency);
+
+    if (discountMinor === 0 && promo.minOrderValue) {
+      return Response.json(
+        {
           success: false,
-          message: `Minimum order value of ${promoCode.minOrderValue} required for this coupon`,
-          minOrderValue: promoCode.minOrderValue,
-          cartTotal: cartTotal,
-        }),
+          message: `This coupon needs a minimum order of ${promo.minOrderValue}`,
+        },
         { status: 400 }
       );
     }
 
-    // Calculate discount
-    let discountAmount = 0;
-    if (promoCode.discountType === "flat") {
-      discountAmount = promoCode.discountValue;
-    } else if (promoCode.discountType === "percent") {
-      discountAmount = (cartTotal * promoCode.discountValue) / 100;
-    }
+    const storedPromo: PromoLike = {
+      code: promo.code,
+      discountType: promo.discountType,
+      discountValue: promo.discountValue,
+      minOrderValue: promo.minOrderValue,
+    };
 
-    // Calculate final amount
-    const finalAmount = cartTotal - discountAmount;
+    await database
+      .collection("checkouts")
+      .updateOne(
+        { _id: new ObjectId(checkoutId) },
+        { $set: { promo: storedPromo } }
+      );
 
-    // Prepare response
-    const response = {
+    const totals = totalsForCheckout(
+      { ...checkout, promo: storedPromo },
+      event
+    );
+
+    return Response.json({
       success: true,
       message: "Coupon applied successfully",
       couponDetails: {
-        code: promoCode.code,
-        discountType: promoCode.discountType,
-        discountValue: promoCode.discountValue,
+        code: promo.code,
+        discountType: promo.discountType,
+        discountValue: promo.discountValue,
       },
-      calculation: {
-        originalAmount: cartTotal,
-        discountAmount: discountAmount,
-        finalAmount: finalAmount,
-      },
-    };
-
-    // Update checkout with applied coupon
-    await checkouts.updateOne(
-      { _id: new ObjectId(checkoutId) },
-      {
-        $set: {
-          appliedCoupon: promoCode,
-          discountAmount: discountAmount,
-          finalAmount: finalAmount,
-        },
-      }
-    );
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
+      totals,
     });
   } catch (error) {
     console.error("Error validating coupon:", error);
-    return new Response("Internal server error", { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
