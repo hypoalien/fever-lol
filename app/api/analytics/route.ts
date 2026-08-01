@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { currencyOrDefault } from "@/lib/currency";
 import { db } from "@/lib/db";
 import {
   startOfDay,
@@ -16,7 +17,7 @@ export async function GET() {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId || typeof userId !== "string") {
       return new Response("Invalid UserId", { status: 400 });
     }
@@ -211,7 +212,7 @@ export async function GET() {
         ...sale,
         avatar: `/avatars/0${Math.floor(Math.random() * 5) + 1}.png`,
       })),
-      currency: session.user.currency,
+      currency: currencyOrDefault(session.user),
     };
 
     return new Response(JSON.stringify(dashboardData), { status: 200 });

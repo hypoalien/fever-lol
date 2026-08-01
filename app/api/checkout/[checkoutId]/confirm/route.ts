@@ -99,10 +99,8 @@ async function reserveInventory(
   return { ok: false, reason: "Could not reserve tickets, please retry" };
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: { checkoutId: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ checkoutId: string }> }) {
+  const params = await props.params;
   try {
     const { checkoutId } = params;
     if (!ObjectId.isValid(checkoutId)) {

@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -7,7 +9,8 @@ import {
 
 type TechComponentType = {
   name: string;
-  icon: JSX.Element;
+  // React 19 removed the global JSX namespace.
+  icon: ReactElement;
 };
 
 type TechComponents = Record<string, TechComponentType>;

@@ -2,17 +2,15 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ObjectId } from "mongodb";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { eventId: string } }
-) {
+export async function GET(req: Request, props: { params: Promise<{ eventId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId) {
       return new Response("Invalid UserId", { status: 400 });
     }
@@ -42,17 +40,15 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: { eventId: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ eventId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId) {
       return new Response("Invalid UserId", { status: 400 });
     }
@@ -111,17 +107,15 @@ export async function POST(
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { eventId: string } }
-) {
+export async function DELETE(req: Request, props: { params: Promise<{ eventId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId) {
       return new Response("Invalid UserId", { status: 400 });
     }

@@ -3,10 +3,8 @@
 import { db } from "@/lib/db";
 import { ObjectId } from "mongodb";
 
-export async function GET(
-  req: Request,
-  { params }: { params: { eventId: string } }
-) {
+export async function GET(req: Request, props: { params: Promise<{ eventId: string }> }) {
+  const params = await props.params;
   try {
 
 

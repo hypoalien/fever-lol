@@ -22,10 +22,8 @@ const BodySchema = z.object({
   couponCode: z.string().trim().min(1).max(64),
 });
 
-export async function POST(
-  req: Request,
-  { params }: { params: { checkoutId: string } }
-) {
+export async function POST(req: Request, props: { params: Promise<{ checkoutId: string }> }) {
+  const params = await props.params;
   try {
     const { checkoutId } = params;
     if (!ObjectId.isValid(checkoutId)) {
