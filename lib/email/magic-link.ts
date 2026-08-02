@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { sql } from "drizzle-orm";
 
+import { log } from "@/lib/log";
+
 import magicLinkTemplate from "./magic-link-email";
 
 /**
@@ -43,9 +45,10 @@ function senderAddress(): string {
     /^.+<[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+>$/.test(configured);
 
   if (!looksValid) {
-    console.warn(
-      `EMAIL_FROM is not a valid sender address (${configured}); using ${DEFAULT_FROM}`
-    );
+    log.warn("EMAIL_FROM is not a valid sender address; using the default", {
+      configured,
+      fallback: DEFAULT_FROM,
+    });
     return DEFAULT_FROM;
   }
   return configured;
@@ -94,6 +97,8 @@ export async function sendMagicLinkEmail({
 
   if (!deliver || !mailer) {
     if (process.env.NODE_ENV !== "production") {
+      // Printed rather than logged structurally: this is for a human reading
+      // their terminal during development.
       console.info(`\n  Magic link for ${to}:\n  ${url}\n`);
       return;
     }

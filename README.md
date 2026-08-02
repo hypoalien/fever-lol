@@ -118,6 +118,28 @@ drizzle/          generated migrations
 scripts/          seed, one-off imports
 ```
 
+## Observability
+
+Logs go to two places at once. `lib/log.ts` writes to the console — which lands
+in Workers Logs and is what you want during an incident — and to PostHog over
+OTLP, which is where anything older than a few hours has to live, because
+Workers Logs is sampled and short-retention.
+
+```ts
+log.exception("Could not confirm checkout", error, { route: "api/checkout" });
+```
+
+`log.exception` pulls the fields a plain `String(error)` throws away: the
+Postgres SQLSTATE, the violated constraint name, the gateway's own error code.
+Those are what you actually search on.
+
+Errors caught by a React boundary are reported to PostHog as `client_error`
+with the digest, which is what ties a broken page back to the server log line
+for the same failure.
+
+`GET /api/health` queries the database rather than only confirming the process
+is up, and returns 503 when it cannot reach it. Point uptime monitoring there.
+
 ## Deploying
 
 The hosted version runs on Cloudflare Workers via OpenNext. See

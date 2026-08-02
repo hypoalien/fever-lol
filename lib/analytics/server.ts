@@ -3,6 +3,7 @@ import "server-only";
 import { PostHog } from "posthog-node";
 
 import type { AnalyticsEvent, AnalyticsProperties } from "./events";
+import { log } from "@/lib/log";
 
 /**
  * Server-side product analytics.
@@ -57,7 +58,7 @@ export function trackServer<E extends AnalyticsEvent>(
       properties: properties as Record<string, unknown>,
     });
   } catch (error) {
-    console.warn("Could not record analytics event:", error);
+    log.warn("Could not record analytics event", { route: "lib/analytics/server.ts", detail: String(error) });
   }
 }
 

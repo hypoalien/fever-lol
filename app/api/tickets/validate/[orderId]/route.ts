@@ -1,5 +1,6 @@
 import { ticketsForOrder } from "@/lib/data/tickets";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 /** All tickets on an order, for check-in at the door. */
 export async function GET(
@@ -18,7 +19,7 @@ export async function GET(
     }
     return Response.json({ orderNumber: orderId, tickets: results });
   } catch (error) {
-    console.error("Error fetching order tickets:", error);
+    log.exception("Error fetching order tickets", error, { route: "api/tickets/validate/[orderId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

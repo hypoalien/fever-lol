@@ -1,4 +1,3 @@
-import { SeverityNumber } from "@opentelemetry/api-logs";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
@@ -52,28 +51,3 @@ export function register(): void {
   globalThis.__posthogLogger = provider.getLogger("fever-lol");
 }
 
-type LogAttributes = Record<string, string | number | boolean>;
-
-/** Emit a structured log. A no-op when the exporter is not configured. */
-function emit(
-  severityNumber: SeverityNumber,
-  severityText: string,
-  body: string,
-  attributes?: LogAttributes
-): void {
-  globalThis.__posthogLogger?.emit({
-    severityNumber,
-    severityText,
-    body,
-    attributes,
-  });
-}
-
-export const log = {
-  info: (body: string, attributes?: LogAttributes) =>
-    emit(SeverityNumber.INFO, "INFO", body, attributes),
-  warn: (body: string, attributes?: LogAttributes) =>
-    emit(SeverityNumber.WARN, "WARN", body, attributes),
-  error: (body: string, attributes?: LogAttributes) =>
-    emit(SeverityNumber.ERROR, "ERROR", body, attributes),
-};

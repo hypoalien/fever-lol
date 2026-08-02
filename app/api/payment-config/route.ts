@@ -5,6 +5,7 @@ import {
   savePaymentConfig,
 } from "@/lib/data/payment-config";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 export async function GET() {
   const session = await requireUser();
@@ -13,7 +14,7 @@ export async function GET() {
   try {
     return Response.json((await getMaskedPaymentConfig(session.user.id)) ?? {});
   } catch (error) {
-    console.error("Error fetching payment configuration:", error);
+    log.exception("Error fetching payment configuration", error, { route: "api/payment-config" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     await savePaymentConfig(session.user.id, parsed.data);
     return Response.json({ message: "Payment configuration updated" });
   } catch (error) {
-    console.error("Error updating payment configuration:", error);
+    log.exception("Error updating payment configuration", error, { route: "api/payment-config" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

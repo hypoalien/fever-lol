@@ -6,6 +6,7 @@ import {
   updateProfile,
 } from "@/lib/data/users";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 /**
  * Onboarding writes the same fields as the profile endpoint, but additionally
@@ -23,7 +24,7 @@ export async function GET() {
     // Previously this returned the entire user document.
     return Response.json(profile);
   } catch (error) {
-    console.error("Error fetching onboarding profile:", error);
+    log.exception("Error fetching onboarding profile", error, { route: "api/onboarding" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
     if (error instanceof ProfileError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Error completing onboarding:", error);
+    log.exception("Error completing onboarding", error, { route: "api/onboarding" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -5,6 +5,7 @@ import { checkInTicket } from "@/lib/data/tickets";
 import { requireUser } from "@/lib/session";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { trackServer } from "@/lib/analytics/server";
+import { log } from "@/lib/log";
 
 const BodySchema = z.object({ ticketId: z.string().trim().min(1).max(200) });
 
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
         });
     }
   } catch (error) {
-    console.error("Error validating ticket:", error);
+    log.exception("Error validating ticket", error, { route: "api/tickets/validate/single-ticket" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

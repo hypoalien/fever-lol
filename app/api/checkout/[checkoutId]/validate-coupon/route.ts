@@ -7,6 +7,7 @@ import {
   assertUsable,
   loadCheckout,
 } from "@/lib/data/checkout";
+import { log } from "@/lib/log";
 
 /**
  * Apply a promo code.
@@ -64,7 +65,7 @@ export async function POST(
         { status: error.status }
       );
     }
-    console.error("Error validating coupon:", error);
+    log.exception("Error validating coupon", error, { route: "api/checkout/[checkoutId]/validate-coupon" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

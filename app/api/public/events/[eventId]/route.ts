@@ -1,4 +1,5 @@
 import { findEventWithDetails } from "@/lib/data/events";
+import { log } from "@/lib/log";
 
 /**
  * Public event page.
@@ -37,7 +38,7 @@ export async function GET(
       venue: event.venue,
     });
   } catch (error) {
-    console.error("Error fetching event details:", error);
+    log.exception("Error fetching event details", error, { route: "api/public/events/[eventId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

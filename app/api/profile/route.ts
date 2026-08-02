@@ -6,6 +6,7 @@ import {
   updateProfile,
 } from "@/lib/data/users";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 export async function GET() {
   const session = await requireUser();
@@ -18,7 +19,7 @@ export async function GET() {
     }
     return Response.json(profile);
   } catch (error) {
-    console.error("Error fetching profile:", error);
+    log.exception("Error fetching profile", error, { route: "api/profile" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
     if (error instanceof ProfileError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Error updating profile:", error);
+    log.exception("Error updating profile", error, { route: "api/profile" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

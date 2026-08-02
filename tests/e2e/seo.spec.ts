@@ -78,3 +78,28 @@ test.describe("SEO", () => {
     expect(xml).not.toContain("Winter Warehouse");
   });
 });
+
+test.describe("operations", () => {
+  test("the health check reports on the database", async ({ request }) => {
+    const response = await request.get("/api/health");
+    expect(response.status()).toBe(200);
+
+    const body = (await response.json()) as {
+      status: string;
+      database: string;
+      latencyMs: number;
+    };
+    expect(body.status).toBe("ok");
+    expect(body.database).toBe("ok");
+    expect(body.latencyMs).toBeGreaterThanOrEqual(0);
+
+    // Must never be cached, or monitoring reads a stale answer.
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  });
+
+  test("an unknown page renders the custom 404", async ({ page }) => {
+    const response = await page.goto("/definitely-not-a-page");
+    expect(response?.status()).toBe(404);
+    await expect(page.getByText("There's nothing here")).toBeVisible();
+  });
+});
