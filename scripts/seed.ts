@@ -78,6 +78,11 @@ async function seed(): Promise<void> {
   if (existing) {
     // A real account — yours, say. Clear only what a previous seed created and
     // leave the person alone, rather than deleting and recreating them.
+    //
+    // Orders first: the foreign key to events is RESTRICT on purpose, so that
+    // financial history cannot vanish with an event. Tickets and order items
+    // cascade from the order.
+    await db.delete(orders).where(eq(orders.organizerId, existing.id));
     await db.delete(events).where(eq(events.userId, existing.id));
     await db.delete(venues).where(eq(venues.userId, existing.id));
     console.log(`reusing existing account ${SEED_EMAIL}, cleared its seed data`);
