@@ -3,6 +3,8 @@ import { z } from "zod";
 import { invalidRequest } from "@/lib/api";
 import { CheckoutError, createCheckout } from "@/lib/data/checkout";
 import { PricingError } from "@/lib/pricing";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { trackServer } from "@/lib/analytics/server";
 
 /**
  * Create a checkout.
@@ -31,6 +33,15 @@ export async function POST(req: Request) {
       parsed.data.eventId,
       parsed.data.cart
     );
+
+    trackServer(ANALYTICS_EVENTS.checkoutStarted, checkoutId, {
+      eventId: parsed.data.eventId,
+      checkoutId,
+      ticketCount: parsed.data.cart.reduce((n, i) => n + i.quantity, 0),
+      subtotalMinor: 0,
+      currency: "",
+    });
+
     return Response.json({ checkoutId });
   } catch (error) {
     if (error instanceof CheckoutError || error instanceof PricingError) {

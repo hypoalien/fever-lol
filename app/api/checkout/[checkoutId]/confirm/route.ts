@@ -15,6 +15,8 @@ import {
   recordIncident,
 } from "@/lib/data/orders";
 import { getRazorpayClient, verifyPaymentSignature } from "@/lib/razorpay";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { flushAnalytics, trackServer } from "@/lib/analytics/server";
 
 /**
  * Confirm a paid checkout and issue tickets.
@@ -87,6 +89,10 @@ export async function POST(
         signature,
       })
     ) {
+      trackServer(ANALYTICS_EVENTS.paymentFailed, checkoutId, {
+        checkoutId,
+        reason: "invalid_signature",
+      });
       // Previously this returned HTTP 200, so the browser's axios call
       // resolved and the flow carried on to issue tickets.
       return Response.json(
@@ -144,6 +150,16 @@ export async function POST(
       gatewayOrderId,
       captured: status === "captured",
     });
+
+    // Captured server-side so a buyer closing the tab still registers.
+    trackServer(ANALYTICS_EVENTS.paymentSucceeded, customerInfo.email, {
+      checkoutId,
+      orderId: order.orderId,
+      totalMinor: totals.totalMinor,
+      currency: loaded.checkout.currency,
+      ticketCount: order.ticketCodes.length,
+    });
+    await flushAnalytics();
 
     return Response.json({
       success: true,

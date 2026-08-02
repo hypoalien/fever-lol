@@ -7,6 +7,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 import Script from "next/script";
 import { CurrencyProvider } from "@/contexts/currency-context";
 import { Toaster } from "@/components/ui/sonner";
+import { AnalyticsProvider } from "@/lib/analytics/client";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -142,8 +143,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} font-sans antialiased`}
       >
-        <SessionWrapper>
-          <CurrencyProvider>
+        <AnalyticsProvider>
+          <SessionWrapper>
+            <CurrencyProvider>
             <NuqsAdapter>
               {children}{" "}
               <Script
@@ -153,7 +155,8 @@ export default function RootLayout({
               <Toaster />
             </NuqsAdapter>
           </CurrencyProvider>
-        </SessionWrapper>
+          </SessionWrapper>
+        </AnalyticsProvider>
       </body>
     </html>
   );
