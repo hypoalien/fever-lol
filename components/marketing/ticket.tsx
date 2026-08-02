@@ -59,7 +59,7 @@ export function HeroTicket() {
           </div>
           <div>
             <dt className="mkt-data">Source</dt>
-            <dd>AGPL-3.0</dd>
+            <dd>MIT</dd>
           </div>
           <div>
             <dt className="mkt-data">Hosting</dt>

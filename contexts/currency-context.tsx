@@ -1,7 +1,8 @@
 "use client";
-import { createContext, useContext, useState, useEffect } from "react";
-import { useSession } from "@/lib/auth-client";
 
+import { createContext, useContext, useMemo, useState } from "react";
+
+import { useSession } from "@/lib/auth-client";
 import { currencyOf, DEFAULT_CURRENCY } from "@/lib/currency";
 
 type CurrencyContextType = {
@@ -16,18 +17,20 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const sessionCurrency = currencyOf(session?.user);
-  const [currency, setCurrency] = useState<string>(
-    sessionCurrency ?? DEFAULT_CURRENCY
+
+  // Only holds a currency the user picked in this tab. The session value is
+  // read directly below rather than copied into state by an effect, which
+  // rendered once with a stale value before correcting itself.
+  const [override, setOverride] = useState<string | null>(null);
+  const currency = override ?? sessionCurrency ?? DEFAULT_CURRENCY;
+
+  const value = useMemo(
+    () => ({ currency, setCurrency: setOverride }),
+    [currency]
   );
 
-  useEffect(() => {
-    if (sessionCurrency) {
-      setCurrency(sessionCurrency);
-    }
-  }, [sessionCurrency]);
-
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency }}>
+    <CurrencyContext.Provider value={value}>
       {children}
     </CurrencyContext.Provider>
   );

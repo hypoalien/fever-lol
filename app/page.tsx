@@ -2,15 +2,61 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { HeroTicket } from "@/components/marketing/ticket";
+import { FAQS } from "@/lib/marketing-content";
 import "./marketing.css";
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://fever.lol";
+
 export const metadata: Metadata = {
-  title: "Fever.lol — Sell tickets, keep the money",
+  title: "Fever.lol — Sell event tickets with zero platform fees",
   description:
-    "Open-source event ticketing. Zero platform fees, payouts straight to your own account, and the whole thing is yours to self-host.",
+    "Open-source event ticketing. Sell tiered tickets, apply promo codes and scan attendees in by QR code. No platform fee, payouts straight to your own Stripe or Razorpay account, and the whole thing is yours to self-host.",
+  keywords: [
+    "event ticketing software",
+    "sell event tickets online",
+    "open source ticketing platform",
+    "zero platform fee ticketing",
+    "eventbrite alternative",
+    "self-hosted ticketing",
+    "QR code check-in",
+    "event management platform",
+  ],
+  alternates: { canonical: SITE },
+  openGraph: {
+    type: "website",
+    url: SITE,
+    siteName: "Fever.lol",
+    title: "Sell event tickets and keep all the money",
+    description:
+      "Open-source ticketing with no platform fee. Buyers pay your own payment account directly — we never hold the funds.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Fever.lol — open-source event ticketing with zero platform fees",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sell event tickets and keep all the money",
+    description:
+      "Open-source ticketing with no platform fee. Payouts go straight to your own account.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
 };
 
 const REPO = "https://github.com/hypoalien/fever-lol";
+
+// Read at build time. Calling new Date() during render makes the page
+// dynamic in Next 16, which costs the whole page its prerendered HTML.
+const YEAR = new Date().getFullYear();
 
 /** A section marker. A roll of tickets is numbered, so the sequence is real. */
 function Serial({ n, label }: { n: string; label: string }) {
@@ -93,28 +139,6 @@ const FEATURES = [
   },
 ];
 
-const FAQS = [
-  {
-    q: "How do you make money if the platform fee is zero?",
-    a: "Right now, we don't. Fever.lol is an open-source project rather than a company, and hosting it costs very little. If a paid tier appears later it will be for things that genuinely cost us money — and the self-hosted version will always do everything the hosted one does.",
-  },
-  {
-    q: "Where does the money actually go?",
-    a: "Into your own Stripe or Razorpay account, directly. We are not a merchant of record and we never hold your funds, which also means there is no payout delay to wait on.",
-  },
-  {
-    q: "Can I run this on my own server?",
-    a: "Yes, and that is a first-class path rather than an afterthought. It is a Next.js app with a Postgres database — there is a Docker Compose file in the repo and the README walks through it.",
-  },
-  {
-    q: "What happens if two people scan the same ticket?",
-    a: "One is admitted and the other is told the ticket has already been used. The check is a single guarded write, so it holds even when both scans land at the same instant.",
-  },
-  {
-    q: "Which currencies do you support?",
-    a: "USD, EUR, GBP and INR today. Razorpay covers Indian payments and Stripe covers the rest. More are on the way.",
-  },
-];
 
 export default function Page() {
   return (
@@ -150,7 +174,7 @@ export default function Page() {
             <div>
               <span className="mkt-badge mkt-data">
                 <span className="mkt-live-dot" aria-hidden="true" />
-                Open source · AGPL-3.0
+                Open source · MIT licensed
               </span>
 
               <h1 className="mkt-display">
@@ -272,7 +296,7 @@ export default function Page() {
           <div className="mkt-os">
             <div>
               <span className="mkt-data" style={{ color: "var(--lime)" }}>
-                AGPL-3.0
+                MIT licensed
               </span>
               <h2 className="mkt-display">No trust required</h2>
               <p>
@@ -382,7 +406,7 @@ export default function Page() {
           </div>
 
           <div className="mkt-colophon mkt-data">
-            <span>© {new Date().getFullYear()} Fever.lol</span>
+            <span>© {YEAR} Fever.lol</span>
             <span>Built in the open</span>
           </div>
         </div>

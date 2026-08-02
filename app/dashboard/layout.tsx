@@ -12,6 +12,8 @@ import {
   BreadcrumbList,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import SessionWrapper from "@/components/session-wrapper";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 export default function DashboardLayout({
   children,
@@ -19,6 +21,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
+    <SessionWrapper>
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="flex flex-col min-h-screen overflow-hidden">
@@ -35,8 +38,11 @@ export default function DashboardLayout({
             </Breadcrumb>
           </div>
         </header>
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto">
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </main>
       </SidebarInset>
     </SidebarProvider>
+    </SessionWrapper>
   );
 }

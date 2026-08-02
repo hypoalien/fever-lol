@@ -1,19 +1,32 @@
-import * as React from "react"
+import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768
+const MOBILE_BREAKPOINT = 768;
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+const query = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`;
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+/**
+ * Tracks whether the viewport is phone-sized.
+ *
+ * Uses useSyncExternalStore rather than an effect that calls setState on
+ * mount. The effect version rendered once with the wrong answer and then
+ * immediately re-rendered, which is a visible flash on any layout that
+ * branches on it — and is what react-hooks/set-state-in-effect was flagging.
+ */
+function subscribe(onChange: () => void): () => void {
+  const media = window.matchMedia(query);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
 
-  return !!isMobile
+function getSnapshot(): boolean {
+  return window.matchMedia(query).matches;
+}
+
+/** The server has no viewport; assume desktop and let hydration correct it. */
+function getServerSnapshot(): boolean {
+  return false;
+}
+
+export function useIsMobile(): boolean {
+  return React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
