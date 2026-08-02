@@ -39,8 +39,11 @@
     --popover: 0 0% 100%;
     --popover-foreground: 218 18% 9%;
 
-    --primary: 229 78% 49%;
-    --primary-foreground: 0 0% 100%;
+    /* Ink, not a blue. A saturated primary blue is the single most
+       template-looking choice available, and the landing page already
+       establishes ink-on-newsprint with lime as the one bright note. */
+    --primary: 218 20% 13%;
+    --primary-foreground: 72 16% 96%;
 
     /* Lime is a fill, never text. At 64% lightness nothing legible sits on
        white, so it always carries ink on top. */
@@ -64,16 +67,22 @@
 
     --border: 79 11% 82%;
     --input: 79 11% 82%;
-    --ring: 229 78% 49%;
+    --ring: 218 20% 13%;
 
-    /* Chart series. Referenced by tailwind.config.ts and never defined, so
-       every chart colour resolved to nothing. Ordered so neighbouring series
-       stay distinguishable in greyscale as well as in colour. */
-    --chart-1: 229 78% 49%;
-    --chart-2: 77 65% 45%;
-    --chart-3: 262 62% 55%;
-    --chart-4: 24 85% 52%;
-    --chart-5: 190 70% 40%;
+    /* Chart series, validated rather than chosen by eye.
+       scripts/validate_palette.js checks the lightness band, chroma floor,
+       adjacent-pair separation under deuteranopia/protanopia/tritanopia, and
+       contrast against the surface. The first attempt failed three of those —
+       ink read as grey, and a purple/blue pair was 2.4 apart to a deuteranope,
+       effectively identical. Order matters: adjacent slots are the ones
+       checked, so teal sits between lime and orange rather than beside
+       magenta. Lime is under 3:1 against paper, which is why every chart here
+       carries axis values and a tooltip rather than relying on colour. */
+    --chart-1: 222 67% 55%;
+    --chart-2: 78 72% 44%;
+    --chart-3: 171 68% 37%;
+    --chart-4: 21 76% 50%;
+    --chart-5: 309 52% 45%;
 
     /* The sidebar stays an ink field. It keeps the dark-surface character of
        the old theme without tinting the whole application. Also never
@@ -85,7 +94,7 @@
     --sidebar-accent: 218 14% 18%;
     --sidebar-accent-foreground: 72 16% 94%;
     --sidebar-border: 218 12% 20%;
-    --sidebar-ring: 229 78% 60%;
+    --sidebar-ring: 77 91% 64%;
 
     /* Tighter than the previous 0.75rem. A ticket is a printed object with
        barely-rounded corners, and the marketing page uses 2-3px throughout. */
@@ -102,9 +111,10 @@
     --popover: 218 16% 12%;
     --popover-foreground: 72 14% 92%;
 
-    /* Lifted: the light-mode blue does not clear contrast on a dark surface. */
-    --primary: 229 90% 68%;
-    --primary-foreground: 218 18% 8%;
+    /* Inverted rather than lifted: on a dark surface the ink primary becomes
+       paper, which keeps the same high-contrast, printed feel. */
+    --primary: 72 16% 94%;
+    --primary-foreground: 218 20% 10%;
 
     --secondary: 77 85% 60%;
     --secondary-foreground: 218 18% 8%;
@@ -126,13 +136,16 @@
 
     --border: 218 12% 20%;
     --input: 218 12% 22%;
-    --ring: 229 90% 68%;
+    --ring: 77 85% 60%;
 
-    --chart-1: 229 90% 68%;
-    --chart-2: 77 75% 58%;
-    --chart-3: 262 70% 70%;
-    --chart-4: 24 88% 62%;
-    --chart-5: 190 68% 55%;
+    /* Separately validated against the dark surface, not flipped from light:
+       the dark lightness band is narrower (0.48-0.67) and the light steps sit
+       outside it. */
+    --chart-1: 223 70% 62%;
+    --chart-2: 67 100% 31%;
+    --chart-3: 184 100% 30%;
+    --chart-4: 23 75% 49%;
+    --chart-5: 313 48% 50%;
 
     --sidebar-background: 218 20% 6%;
     --sidebar-foreground: 72 12% 86%;
@@ -141,7 +154,7 @@
     --sidebar-accent: 218 16% 14%;
     --sidebar-accent-foreground: 72 14% 92%;
     --sidebar-border: 218 12% 16%;
-    --sidebar-ring: 229 90% 68%;
+    --sidebar-ring: 77 85% 60%;
   }
 }
 

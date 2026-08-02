@@ -22,6 +22,22 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+/**
+ * "Sam Rivera" -> "SR", "sam@fever.local" -> "S".
+ *
+ * Falls back to the email because a magic-link account has no name until the
+ * organizer fills one in, and an avatar with nothing in it reads as a loading
+ * state that never resolves.
+ */
+function initials(name: string, email: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (email.trim()[0] ?? "?").toUpperCase();
+}
+
 export function NavUser({
   user,
 }: {
@@ -50,9 +66,8 @@ export function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg">
                 {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
-                <AvatarFallback className="rounded-lg">
-                  {user.name?.charAt(0)}
-                  {user.name?.split(" ")[1]?.charAt(0)}
+                <AvatarFallback className="rounded-lg bg-sidebar-accent text-xs font-medium text-sidebar-accent-foreground">
+                  {initials(user.name, user.email)}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -72,9 +87,8 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   {user.avatar ? <AvatarImage src={user.avatar} alt={user.name} /> : null}
-                  <AvatarFallback className="rounded-lg">
-                    {user.name?.charAt(0)}
-                    {user.name?.split(" ")[1]?.charAt(0)}
+                  <AvatarFallback className="rounded-lg bg-sidebar-accent text-xs font-medium text-sidebar-accent-foreground">
+                    {initials(user.name, user.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">

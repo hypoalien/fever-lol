@@ -87,16 +87,12 @@ export function DataTable<TData, TValue>({
       {isLoading ? (
         <Loading />
       ) : data.length === 0 ? (
-        <div className="flex flex-1 py-16 items-center justify-center rounded-lg border border-dashed">
-          {/* ... empty state content ... */}
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">
-              You have no orders
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              You can start selling as soon as you add an Event.
+        <div className="grid place-items-center rounded-lg border border-dashed py-16 text-center">
+          <div className="max-w-sm">
+            <p className="font-medium">No orders yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Publish an event and the first purchases will land here.
             </p>
-            <Button className="mt-4">Add Event</Button>
           </div>
         </div>
       ) : (

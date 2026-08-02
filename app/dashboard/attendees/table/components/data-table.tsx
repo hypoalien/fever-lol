@@ -72,24 +72,22 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <div className="w-full space-y-4">
       <DataTableToolbar table={table} />
       {isLoading ? (
         <Loading />
       ) : data.length === 0 ? (
-        <div className="flex flex-1 pt-32 pb-32 items-center justify-center rounded-lg border border-dashed shadow-sm">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h3 className="text-2xl font-bold tracking-tight">
-              You have no Orders
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              You can start selling as soon as you add an Event.
+        <div className="grid place-items-center rounded-lg border border-dashed py-16 text-center">
+          <div className="max-w-sm">
+            <p className="font-medium">No attendees yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Everyone who buys a ticket shows up here, ready to check in on
+              the door.
             </p>
-            <Button className="mt-4">Promote your event</Button>
           </div>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (

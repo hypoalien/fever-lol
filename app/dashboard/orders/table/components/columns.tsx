@@ -27,6 +27,22 @@ const PriceCell = ({ value }: { value: number }) => {
   );
 };
 
+/**
+ * "2 Aug 2026, 04:29" — seconds are noise in a list, and the slash format
+ * reads as month-first to some readers and day-first to others.
+ */
+function whenLabel(value: unknown): string {
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export const columns: ColumnDef<Order>[] = [
   {
     id: "select",
@@ -56,10 +72,10 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "orderNumber",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order ID" />
+      <DataTableColumnHeader column={column} title="Order" />
     ),
     cell: ({ row }) => (
-      <div className="w-[120px] font-medium text-foreground text-nowrap truncate">
+      <div className="whitespace-nowrap font-mono text-xs text-muted-foreground">
         {row.getValue("orderNumber")}
       </div>
     ),
@@ -69,11 +85,11 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order Date" />
+      <DataTableColumnHeader column={column} title="Placed" />
     ),
     cell: ({ row }) => (
-      <div className="w-[160px] text-muted-foreground">
-        {new Date(row.getValue("createdAt")).toLocaleString()}
+      <div className="whitespace-nowrap text-muted-foreground">
+        {whenLabel(row.getValue("createdAt"))}
       </div>
     ),
     enableSorting: true,
@@ -82,10 +98,10 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "customerName",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Customer Name" />
+      <DataTableColumnHeader column={column} title="Customer" />
     ),
     cell: ({ row }) => (
-      <div className="w-[180px]">
+      <div className="min-w-[130px] font-medium">
         <span className="font-medium text-foreground">
           {row.getValue("customerName") || "N/A"}
         </span>
@@ -97,10 +113,10 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "eventName",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Event Name" />
+      <DataTableColumnHeader column={column} title="Event" />
     ),
     cell: ({ row }) => (
-      <div className="w-[200px]">
+      <div className="max-w-[200px] truncate">
         <span className="font-medium text-foreground">
           {row.getValue("eventName")}
         </span>
@@ -113,7 +129,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "totalMinor",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Total Amount" />
+      <DataTableColumnHeader column={column} title="Total" />
     ),
     cell: ({ row }) => <PriceCell value={row.getValue("totalMinor")} />,
     enableSorting: true,
@@ -122,7 +138,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "paymentStatus",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Payment Status" />
+      <DataTableColumnHeader column={column} title="Payment" />
     ),
     cell: ({ row }) => {
       const status = paymentStatuses.find(
@@ -132,7 +148,7 @@ export const columns: ColumnDef<Order>[] = [
       if (!status) return null;
 
       return (
-        <div className="w-[140px] flex items-center">
+        <div className="flex items-center whitespace-nowrap">
           {status.icon && <status.icon className="mr-2 h-4 w-4 text-primary" />}
           <span className="text-muted-foreground">{status.label}</span>
         </div>
@@ -145,7 +161,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "orderStatus",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order Status" />
+      <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
       const status = orderStatuses.find(
@@ -155,7 +171,7 @@ export const columns: ColumnDef<Order>[] = [
       if (!status) return null;
 
       return (
-        <div className="w-[140px] flex items-center">
+        <div className="flex items-center whitespace-nowrap">
           {status.icon && <status.icon className="mr-2 h-4 w-4 text-primary" />}
           <span className="text-muted-foreground">{status.label}</span>
         </div>
@@ -168,7 +184,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: "actions",
     cell: ({ row }) => (
-      <div className="w-[80px]">
+      <div>
         <DataTableRowActions row={row} />
       </div>
     ),

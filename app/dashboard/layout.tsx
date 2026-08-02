@@ -14,6 +14,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import SessionWrapper from "@/components/session-wrapper";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { QueryProvider } from "@/lib/query/client";
 
 export default function DashboardLayout({
   children,
@@ -22,6 +23,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SessionWrapper>
+    <QueryProvider>
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset className="flex flex-col min-h-screen overflow-hidden">
@@ -43,6 +45,7 @@ export default function DashboardLayout({
         </main>
       </SidebarInset>
     </SidebarProvider>
+    </QueryProvider>
     </SessionWrapper>
   );
 }

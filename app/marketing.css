@@ -17,8 +17,11 @@
   --paper-deep: #e7e9e1;
   --ink: #12151a;
   --ink-soft: #5a616b;
-  --blue: #1b3fe0;
-  --blue-deep: #1533b4;
+  /* Ink carries actions here too. A saturated blue was the one genuinely
+     template-looking choice in this palette; removing it leaves newsprint,
+     ink and the fluorescent stock — which is the whole idea. */
+  --action: #12151a;
+  --action-deep: #000000;
   --lime: #c8f751;
   --rule: #d3d6cc;
 
@@ -208,16 +211,18 @@
 
 /* Offset shadow rather than a blur: printed matter, not glass. */
 .mkt-btn-primary {
-  background: var(--blue);
-  color: #fff;
+  background: var(--action);
+  color: var(--paper);
   border-color: var(--ink);
-  box-shadow: 3px 3px 0 var(--ink);
+  /* The offset shadow now needs to read against the button itself, so it
+     picks up the fluorescent stock rather than more ink. */
+  box-shadow: 3px 3px 0 var(--lime);
 }
 
 .mkt-btn-primary:hover {
-  background: var(--blue-deep);
+  background: var(--action-deep);
   transform: translate(1px, 1px);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: 2px 2px 0 var(--lime);
 }
 
 .mkt-btn-ghost {
@@ -235,7 +240,7 @@
 .mkt-btn:focus-visible,
 .mkt-nav-link:focus-visible,
 .mkt-wordmark:focus-visible {
-  outline: 3px solid var(--blue);
+  outline: 3px solid var(--ink);
   outline-offset: 3px;
 }
 
@@ -301,8 +306,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--blue);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent);
+  background: var(--action);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 22%, transparent);
 }
 
 /* ------------------------------------------------------------ ticket --- */
@@ -624,7 +629,7 @@
 }
 
 .mkt-card-icon {
-  color: var(--blue);
+  color: var(--action);
 }
 
 /* -------------------------------------------------------------- title -- */
@@ -735,7 +740,7 @@
   content: "+";
   font-family: var(--font-geist-mono), monospace;
   font-size: 1.25rem;
-  color: var(--blue);
+  color: var(--action);
   flex-shrink: 0;
 }
 
@@ -744,7 +749,7 @@
 }
 
 .mkt-faq summary:focus-visible {
-  outline: 3px solid var(--blue);
+  outline: 3px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -793,7 +798,7 @@
 }
 
 .mkt-footer a:hover {
-  color: var(--blue);
+  color: var(--action);
   text-decoration: underline;
   text-underline-offset: 3px;
 }

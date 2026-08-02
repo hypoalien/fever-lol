@@ -6,10 +6,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { type Attendee } from "@/models/attendees";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2 } from "lucide-react";
-import axios from "axios";
-import { useState } from "react";
+import { Check, CheckCircle, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+
+import { useCheckInTicket } from "@/lib/query/hooks";
+
+/**
+ * "2 Aug 2026, 04:29" — seconds are noise in a list, and the slash format
+ * reads as month-first to some readers and day-first to others.
+ */
+function whenLabel(value: unknown): string {
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export const columns: ColumnDef<Attendee>[] = [
   {
@@ -22,7 +39,7 @@ export const columns: ColumnDef<Attendee>[] = [
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
-        className="translate-y-[2px] data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+        className="translate-y-[2px]"
       />
     ),
     cell: ({ row }) => (
@@ -30,7 +47,7 @@ export const columns: ColumnDef<Attendee>[] = [
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
-        className="translate-y-[2px] data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+        className="translate-y-[2px]"
       />
     ),
     enableSorting: false,
@@ -38,13 +55,15 @@ export const columns: ColumnDef<Attendee>[] = [
     size: 40,
   },
   {
-    accessorKey: "orderNumber",
+    accessorKey: "name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order ID" />
+      <DataTableColumnHeader column={column} title="Attendee" />
     ),
+    // The person comes first: this is a list of people, and the order number
+    // was leading it purely because that is the order the API returns fields.
     cell: ({ row }) => (
-      <div className="w-[120px] font-medium text-muted-foreground text-nowrap truncate">
-        {row.getValue("orderNumber") || "N/A"}
+      <div className="min-w-[140px] font-medium">
+        {row.getValue("name") || "Unnamed"}
       </div>
     ),
     enableSorting: true,
@@ -53,136 +72,127 @@ export const columns: ColumnDef<Attendee>[] = [
   {
     accessorKey: "eventName",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Event Name" />
+      <DataTableColumnHeader column={column} title="Event" />
     ),
     cell: ({ row }) => (
-      <div className="w-[250px] truncate font-medium">
-        {row.getValue("eventName") || "N/A"}
+      <div className="max-w-[220px] truncate">
+        {row.getValue("eventName") || "-"}
       </div>
     ),
     enableSorting: true,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Customer Name" />
-    ),
-    cell: ({ row }) => (
-      <div className="w-[180px] truncate font-medium">
-        {row.getValue("name") || "N/A"}
-      </div>
-    ),
-    enableSorting: true,
-    enableHiding: false,
   },
   {
     accessorKey: "type",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Ticket Type" />
+      <DataTableColumnHeader column={column} title="Ticket" />
     ),
     cell: ({ row }) => (
-      <div className="w-[150px] truncate font-medium text-muted-foreground">
+      <div className="max-w-[160px] truncate text-muted-foreground">
         {row.getValue("type")}
       </div>
     ),
     enableSorting: true,
-    enableHiding: false,
   },
   {
     accessorKey: "status",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Status" />
     ),
+    // Status and the time it happened are one fact, so they share a cell.
+    // As separate columns the table was wider than any laptop screen and the
+    // time scrolled permanently out of view.
+    cell: ({ row }) => {
+      const checkedIn = row.getValue("status") === "checked_in";
+      const at = row.original.checkedInAt;
+
+      return (
+        <div className="min-w-[150px]">
+          {checkedIn ? (
+            <>
+              {/* Not the brand accent: that colour is the product's, and a
+                  status is not a brand moment. A tick plus quiet ink says
+                  "done" without shouting it on every row. */}
+              <Badge
+                variant="outline"
+                className="gap-1 border-success/30 bg-success/10 text-success"
+              >
+                <Check className="size-3" />
+                Checked in
+              </Badge>
+              {at && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {whenLabel(at)}
+                </p>
+              )}
+            </>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground">
+              Not checked in
+            </Badge>
+          )}
+        </div>
+      );
+    },
+    enableSorting: true,
+  },
+  {
+    accessorKey: "orderNumber",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Order" />
+    ),
     cell: ({ row }) => (
-      <div className="w-[120px]">
-        {row.getValue("status") === "checked_in" ? (
-          <Badge className="bg-primary/20 text-primary hover:bg-primary/30">
-            Checked in
-          </Badge>
-        ) : (
-          <Badge
-            variant="outline"
-            className="border-muted text-muted-foreground"
-          >
-            Not checked in
-          </Badge>
-        )}
+      <div className="font-mono text-xs text-muted-foreground">
+        {row.getValue("orderNumber") || "-"}
       </div>
     ),
     enableSorting: true,
-    enableHiding: false,
   },
   {
     id: "checkInNow",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Action" />
-    ),
+    header: () => <span className="sr-only">Check in</span>,
     cell: ({ row }) => <CheckInCell row={row} />,
     enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "checkedInAt",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Checked In Time" />
-    ),
-    cell: ({ row }) => (
-      <div className="w-[180px] text-muted-foreground">
-        {row.getValue("checkedInAt")
-          ? new Date(row.getValue("checkedInAt")).toLocaleString()
-          : "-"}
-      </div>
-    ),
-    enableSorting: true,
     enableHiding: false,
   },
 ];
 
 const CheckInCell = ({ row }: { row: Row<Attendee> }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  // Held locally rather than written onto row.original: mutating the table's
-  // data does not notify it, so the cell only re-rendered by luck of the
-  // loading flag changing in the same tick.
-  const [justCheckedIn, setJustCheckedIn] = useState(false);
+  // The same filter the page reads, so the optimistic write lands on the cache
+  // entry this table is actually rendering rather than the unfiltered one.
+  const eventId = useSearchParams().get("eventId") ?? undefined;
+  const checkIn = useCheckInTicket(eventId);
 
-  const handleCheckIn = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.post("/api/tickets/validate/single-ticket", {
-        ticketId: row.original.code,
-      });
-      if (response.data.success) {
-        setJustCheckedIn(true);
-        toast.success("Ticket checked in");
-      } else {
-        toast.error(response.data.message ?? "Could not check this ticket in");
-      }
-    } catch (error) {
-      console.error("Check-in failed:", error);
-      toast.error("Could not reach the server. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // The wrapper stays even when there is no button: dropping it collapsed the
+  // column and made checked-in rows visibly shorter than the rest.
+  if (row.getValue("status") === "checked_in") {
+    return <div className="w-[140px]" />;
+  }
 
   return (
     <div className="w-[140px]">
-      {!justCheckedIn && row.getValue("status") !== "checked_in" && (
-        <Button
-          variant="ghost"
-          className="hover:bg-primary/10 hover:text-primary px-2 h-8"
-          onClick={handleCheckIn}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <CheckCircle className="h-4 w-4 mr-2" />
-          )}
-          {isLoading ? "Checking in..." : "Check in"}
-        </Button>
-      )}
+      <Button
+        variant="ghost"
+        className="h-8 px-2 hover:bg-primary/10 hover:text-primary"
+        onClick={() =>
+          checkIn.mutate(row.original.code, {
+            onSuccess: () => toast.success("Ticket checked in"),
+            onError: (error) =>
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : "Could not check this ticket in"
+              ),
+          })
+        }
+        disabled={checkIn.isPending}
+      >
+        {checkIn.isPending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <CheckCircle className="mr-2 h-4 w-4" />
+        )}
+        {checkIn.isPending ? "Checking in..." : "Check in"}
+      </Button>
     </div>
   );
 };

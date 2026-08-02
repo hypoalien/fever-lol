@@ -29,6 +29,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import Image from "next/image";
+import Link from "next/link";
+
+import { LogoMark } from "@/components/brand/logo";
 
 const navigationData = {
   navMain: [
@@ -96,30 +99,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   }, [isPending, session, router]);
 
-  if (isPending || !session) {
-    return <div>Loading...</div>;
-  }
+  // The chrome renders straight away and only the user block waits. Returning
+  // nothing until the session resolved meant the whole sidebar appeared a beat
+  // after the page, shifting everything sideways on every load.
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <a href="/dashboard">
-                <div className="flex bg-primary-foreground aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
-                  <Image
-                    src="/logo.svg"
-                    alt="Fever.lol"
-                    className="w-full h-full p-1 bg-primary rounded-sm"
-                    width={64}
-                    height={64}
-                  />
+              <Link href="/dashboard">
+                <LogoMark className="size-8 text-[hsl(var(--secondary))]" />
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-semibold tracking-tight">
+                    Fever.lol
+                  </span>
+                  <span className="truncate text-xs text-sidebar-foreground/60">
+                    Event ticketing
+                  </span>
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Fever.lol</span>
-                  <span className="truncate text-xs">Event Management</span>
-                </div>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -129,13 +128,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={navigationData.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser
-          user={{
-            name: session?.user?.name || "",
-            email: session?.user?.email || "",
-            avatar: session?.user?.image ?? "",
-          }}
-        />
+        {isPending || !session ? (
+          <div className="flex items-center gap-2 p-2">
+            <div className="size-8 shrink-0 animate-pulse rounded-lg bg-sidebar-accent" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-24 animate-pulse rounded bg-sidebar-accent" />
+              <div className="h-2.5 w-32 animate-pulse rounded bg-sidebar-accent" />
+            </div>
+          </div>
+        ) : (
+          <NavUser
+            user={{
+              name: session.user.name || "",
+              email: session.user.email || "",
+              avatar: session.user.image ?? "",
+            }}
+          />
+        )}
       </SidebarFooter>
     </Sidebar>
   );

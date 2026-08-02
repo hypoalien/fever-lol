@@ -56,17 +56,21 @@ export const eventFormSchema = z.object({
   paymentGatewayFee: z.string({
     error: "Please select who pays the processing fee",
   }),
+  // Mirrors VenueView. Only the id is sent on save — the rest is here so the
+  // selected venue can be shown without a second fetch. It previously demanded
+  // a required `timeZone` and non-null strings, neither of which the venues
+  // API returns, so picking a venue failed validation and blocked the save.
   venue: z
     .object({
       id: z.string(),
       venueName: z.string(),
-      address: z.string(),
-      city: z.string(),
-      state: z.string(),
-      country: z.string(),
-      capacity: z.number(),
-      timeZone: z.string(),
-      mapsUrl: z.string().optional(),
+      address: z.string().nullable(),
+      city: z.string().nullable(),
+      state: z.string().nullable(),
+      country: z.string().nullable(),
+      postalCode: z.string().nullable(),
+      mapLink: z.string().nullable(),
+      capacity: z.number().nullable(),
     })
     .nullable(),
 });

@@ -104,13 +104,13 @@ export default function EventForm() {
         form.setValue("venue", {
           id: data.venue.id,
           venueName: data.venue.venueName,
-          address: data.venue.address,
-          city: data.venue.city,
-          state: data.venue.state,
-          country: data.venue.country,
-          capacity: data.venue.capacity,
-          timeZone: data.venue.timeZone,
-          mapsUrl: data.venue.mapsUrl,
+          address: data.venue.address ?? null,
+          city: data.venue.city ?? null,
+          state: data.venue.state ?? null,
+          country: data.venue.country ?? null,
+          postalCode: data.venue.postalCode ?? null,
+          mapLink: data.venue.mapLink ?? null,
+          capacity: data.venue.capacity ?? null,
         });
       }
 
