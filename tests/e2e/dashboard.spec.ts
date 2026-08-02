@@ -76,6 +76,24 @@ test.describe("dashboard", () => {
     await expect(page.getByText("WELCOME15")).toHaveCount(0);
   });
 
+  test("orders render with correctly scaled amounts", async ({ page }) => {
+    await page.goto("/dashboard/orders");
+
+    await expect(page.getByText("Priya Raman").first()).toBeVisible();
+
+    // Amounts are stored in minor units. Printing them raw put a hundredfold
+    // error on every row, which is the kind of thing an organizer notices
+    // before we do.
+    const body = await page.locator("body").innerText();
+    expect(body).toMatch(/\$\d+\.\d{2}/);
+    expect(body, "unscaled minor units on screen").not.toMatch(/\$\d{5,}(?!\.)/);
+  });
+
+  test("attendees render, with check-in state", async ({ page }) => {
+    await page.goto("/dashboard/attendees");
+    await expect(page.getByText("Priya Raman").first()).toBeVisible();
+  });
+
   test("the orders and attendees tables load without erroring", async ({
     page,
   }) => {

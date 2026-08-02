@@ -7,13 +7,21 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import { type Order } from "@/models/orders";
 import { usePrice } from "@/hooks/use-price";
+/**
+ * Renders an amount held in minor units.
+ *
+ * The row carries integers — 29510 is $295.10 — so this both divides and
+ * formats. Printing the raw value put a hundredfold error on every row.
+ */
 const PriceCell = ({ value }: { value: number }) => {
   const { currency } = usePrice();
   return (
     <div className="w-[120px]">
-      <span className="font-medium text-primary">
-        {currency === "USD" ? "$" : "₹"}
-        {value}
+      <span className="font-medium tabular-nums">
+        {new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency,
+        }).format(value / 100)}
       </span>
     </div>
   );

@@ -57,12 +57,12 @@ export function DataTableToolbar<TData>({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
-          placeholder="Filter attendees..."
+          placeholder="Search attendees by name..."
           value={
-            (table.getColumn("customerName")?.getFilterValue() as string) ?? ""
+            (table.getColumn("name")?.getFilterValue() as string) ?? ""
           }
           onChange={(event) =>
-            table.getColumn("customerName")?.setFilterValue(event.target.value)
+            table.getColumn("name")?.setFilterValue(event.target.value)
           }
           className="h-8 w-full sm:w-[250px]"
         />

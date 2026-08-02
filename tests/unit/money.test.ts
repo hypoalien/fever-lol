@@ -72,3 +72,31 @@ describe("clampToZero", () => {
     expect(clampToZero(5)).toBe(5);
   });
 });
+
+describe("zero-decimal currencies", () => {
+  it("does not scale JPY, which has no minor unit", () => {
+    // ¥1000 is 1000 minor units. Treating it like USD would bill ¥100,000.
+    expect(toMinor(1000, "JPY")).toBe(1000);
+    expect(toMinor("1000", "JPY")).toBe(1000);
+    expect(toMajor(1000, "JPY")).toBe(1000);
+  });
+
+  it("rounds a fractional JPY amount to a whole yen", () => {
+    expect(toMinor("1000.6", "JPY")).toBe(1001);
+  });
+
+  it("handles KRW the same way", () => {
+    expect(toMinor(50_000, "KRW")).toBe(50_000);
+  });
+
+  it("still scales two-decimal currencies", () => {
+    expect(toMinor(10, "USD")).toBe(1000);
+    expect(toMinor(10, "BRL")).toBe(1000);
+    expect(toMinor(10, "CAD")).toBe(1000);
+  });
+
+  it("computes a percentage against the right base", () => {
+    // 3% of ¥10,000 is ¥300, not ¥3.
+    expect(percentOf(toMinor(10_000, "JPY"), 3)).toBe(300);
+  });
+});
