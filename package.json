@@ -20,7 +20,10 @@
     "db:seed": "bun run scripts/seed.ts",
     "test:integration": "./scripts/prepare-test-db.sh && vitest run --config vitest.integration.config.mts",
     "users:import:dry": "tsx scripts/import-mongo-users.ts --dry-run",
-    "users:import": "tsx scripts/import-mongo-users.ts"
+    "users:import": "tsx scripts/import-mongo-users.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "bun run typecheck && bun run lint && bun run test && bun run test:integration && bun run test:e2e"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1101.0",
@@ -98,6 +101,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

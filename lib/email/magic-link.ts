@@ -69,6 +69,20 @@ export async function sendMagicLinkEmail({
   url: string;
 }): Promise<void> {
   const action = (await isReturningUser(to)) ? "SIGNIN" : "ACTIVATE";
+
+  // End-to-end tests run a production build, so they cannot rely on the
+  // development behaviour below. Tokens are stored hashed and can't be
+  // recovered from the database, so the link is written where the test can
+  // read it. Strictly gated on E2E=1, which is only ever set by the runner.
+  if (process.env.E2E === "1") {
+    const { writeFile, mkdir } = await import("node:fs/promises");
+    const { dirname } = await import("node:path");
+    const target = process.env.E2E_MAGIC_LINK_FILE ?? ".e2e/magic-link.txt";
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, url, "utf8");
+    return;
+  }
+
   const mailer = resend();
 
   // Outside production, print the link instead of sending it. Developers pull

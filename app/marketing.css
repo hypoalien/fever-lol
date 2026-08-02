@@ -27,6 +27,9 @@
 
   background: var(--paper);
   color: var(--ink);
+  /* Perforation notches deliberately bleed past the page edge, the way a tear
+     line runs off the side of real ticket stock. Clip rather than scroll. */
+  overflow-x: clip;
   font-family: var(--font-figtree), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -322,6 +325,14 @@
 
 .mkt-ticket:hover {
   transform: rotate(-0.4deg) translateY(-4px);
+}
+
+@media (max-width: 619px) {
+  .mkt-ticket,
+  .mkt-ticket:hover {
+    transform: none;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
 }
 
 @media (min-width: 620px) {
