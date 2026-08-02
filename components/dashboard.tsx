@@ -1,32 +1,21 @@
 "use client";
 // types.ts
+/**
+ * Mirrors `getDashboardData` in lib/data/analytics.ts. Amounts are integer
+ * minor units, like everywhere else; formatting happens at render.
+ */
 interface DashboardData {
-  totalRevenue: {
-    amount: number;
-    percentageChange: number;
-  };
-  salesToday: {
-    amount: number;
-    percentageChange: number;
-  };
-  ticketsSold: {
-    count: number;
-    percentageChange: number;
-  };
-  activeEvents: {
-    count: number;
-    percentageChange: number;
-  };
-  overview: {
-    name: string;
-    total: number;
-  }[];
+  totalRevenue: { amountMinor: number; percentageChange: number };
+  salesToday: { amountMinor: number; percentageChange: number };
+  ticketsSold: { count: number; percentageChange: number };
+  activeEvents: { count: number; change: number };
+  overview: { name: string; totalMinor: number }[];
   recentSales: {
     id: string;
     name: string;
     email: string;
-    amount: number;
-    avatar: string;
+    amountMinor: number;
+    date: string;
   }[];
   currency: string;
 }
@@ -56,7 +45,14 @@ export default function DashboardPage() {
     null
   );
   const [loading, setLoading] = useState(true);
-  const { formatPrice } = usePrice();
+  const { currency } = usePrice();
+
+  // Bound to the organizer's currency, applied to minor units.
+  const money = (minor: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: dashboardData?.currency ?? currency,
+    }).format(minor / 100);
 
   const fetchDashboardData = async () => {
     try {
@@ -109,7 +105,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatPrice(dashboardData.totalRevenue.amount.toFixed(2))}
+                {money(dashboardData.totalRevenue.amountMinor)}
               </div>
               <p className="text-xs text-muted-foreground">
                 +{dashboardData.totalRevenue.percentageChange.toFixed(2)}% from
@@ -125,7 +121,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatPrice(dashboardData.salesToday.amount.toFixed(2))}
+                {money(dashboardData.salesToday.amountMinor)}
               </div>
               <p className="text-xs text-muted-foreground">
                 +{dashboardData.salesToday.percentageChange.toFixed(2)}% from
@@ -164,7 +160,7 @@ export default function DashboardPage() {
                 +{dashboardData.activeEvents.count}
               </div>
               <p className="text-xs text-muted-foreground">
-                +{dashboardData.activeEvents.percentageChange.toFixed(2)}% from
+                +{dashboardData.activeEvents.change.toFixed(2)}% from
                 last month
               </p>
             </CardContent>

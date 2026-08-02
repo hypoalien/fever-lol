@@ -4,14 +4,14 @@ import { ColumnDef, type Row } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader } from "./data-table-column-header";
-import { AttendeeInfo } from "@/models/attendees";
+import { type Attendee } from "@/models/attendees";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
 import axios from "axios";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export const columns: ColumnDef<AttendeeInfo>[] = [
+export const columns: ColumnDef<Attendee>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -38,13 +38,13 @@ export const columns: ColumnDef<AttendeeInfo>[] = [
     size: 40,
   },
   {
-    accessorKey: "orderId",
+    accessorKey: "orderNumber",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Order ID" />
     ),
     cell: ({ row }) => (
       <div className="w-[120px] font-medium text-muted-foreground text-nowrap truncate">
-        {row.getValue("orderId") || "N/A"}
+        {row.getValue("orderNumber") || "N/A"}
       </div>
     ),
     enableSorting: true,
@@ -64,39 +64,39 @@ export const columns: ColumnDef<AttendeeInfo>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "customerName",
+    accessorKey: "name",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Customer Name" />
     ),
     cell: ({ row }) => (
       <div className="w-[180px] truncate font-medium">
-        {row.getValue("customerName") || "N/A"}
+        {row.getValue("name") || "N/A"}
       </div>
     ),
     enableSorting: true,
     enableHiding: false,
   },
   {
-    accessorKey: "ticketType",
+    accessorKey: "type",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Ticket Type" />
     ),
     cell: ({ row }) => (
       <div className="w-[150px] truncate font-medium text-muted-foreground">
-        {row.getValue("ticketType")}
+        {row.getValue("type")}
       </div>
     ),
     enableSorting: true,
     enableHiding: false,
   },
   {
-    accessorKey: "checkedIn",
+    accessorKey: "status",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => (
       <div className="w-[120px]">
-        {row.getValue("checkedIn") ? (
+        {row.getValue("status") === "checked_in" ? (
           <Badge className="bg-primary/20 text-primary hover:bg-primary/30">
             Checked in
           </Badge>
@@ -123,14 +123,14 @@ export const columns: ColumnDef<AttendeeInfo>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "checkedInTime",
+    accessorKey: "checkedInAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Checked In Time" />
     ),
     cell: ({ row }) => (
       <div className="w-[180px] text-muted-foreground">
-        {row.getValue("checkedInTime")
-          ? new Date(row.getValue("checkedInTime")).toLocaleString()
+        {row.getValue("checkedInAt")
+          ? new Date(row.getValue("checkedInAt")).toLocaleString()
           : "-"}
       </div>
     ),
@@ -139,7 +139,7 @@ export const columns: ColumnDef<AttendeeInfo>[] = [
   },
 ];
 
-const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
+const CheckInCell = ({ row }: { row: Row<Attendee> }) => {
   const [isLoading, setIsLoading] = useState(false);
   // Held locally rather than written onto row.original: mutating the table's
   // data does not notify it, so the cell only re-rendered by luck of the
@@ -150,7 +150,7 @@ const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
     setIsLoading(true);
     try {
       const response = await axios.post("/api/tickets/validate/single-ticket", {
-        ticketId: row.original.attendeeId,
+        ticketId: row.original.code,
       });
       if (response.data.success) {
         setJustCheckedIn(true);
@@ -168,7 +168,7 @@ const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
 
   return (
     <div className="w-[140px]">
-      {!justCheckedIn && !row.getValue("checkedIn") && (
+      {!justCheckedIn && row.getValue("status") !== "checked_in" && (
         <Button
           variant="ghost"
           className="hover:bg-primary/10 hover:text-primary px-2 h-8"

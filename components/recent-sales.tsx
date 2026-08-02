@@ -1,24 +1,23 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { usePrice } from "@/hooks/use-price";
 interface RecentSalesProps {
   sales: {
     id: string;
     name: string;
     email: string;
-    amount: number;
-    avatar: string;
+    amountMinor: number;
+    date: string;
   }[];
 }
 
 export function RecentSales({ sales }: RecentSalesProps) {
-  const { formatPrice } = usePrice();
+  const { currency } = usePrice();
 
   return (
     <div className="space-y-8">
       {sales.map((sale) => (
         <div key={sale.id} className="flex items-center">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={sale.avatar} alt="Avatar" />
             <AvatarFallback>
               {sale.name
                 .split(" ")
@@ -31,7 +30,7 @@ export function RecentSales({ sales }: RecentSalesProps) {
             <p className="text-sm text-muted-foreground">{sale.email}</p>
           </div>
           <div className="ml-auto font-medium">
-            +{formatPrice(sale.amount.toFixed(2))}
+            +{new Intl.NumberFormat("en-US", { style: "currency", currency }).format(sale.amountMinor / 100)}
           </div>
         </div>
       ))}

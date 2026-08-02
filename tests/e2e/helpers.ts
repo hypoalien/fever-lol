@@ -4,41 +4,73 @@ import { expect, type Page } from "@playwright/test";
 const MAGIC_LINK_FILE = process.env.E2E_MAGIC_LINK_FILE ?? ".e2e/magic-link.txt";
 
 /**
- * Wait for the server to drop the most recent magic link, then return it.
+ * Every link this process has already handed out.
  *
- * The link is written to disk rather than emailed because the suite runs a
+ * The server writes the file asynchronously, so a late write from a previous
+ * test can land after the next one has cleared it. Comparing timestamps is not
+ * enough — a re-write of an already-consumed token looks new. Tracking the
+ * content is exact: a link that has been seen before is never returned twice,
+ * and following a consumed token (which fails as an unexplained navigation
+ * timeout) becomes impossible.
+ */
+const seen = new Set<string>();
+
+/**
+ * Wait for a magic link this process has not used yet.
+ *
+ * The link goes to a file rather than an inbox because the suite runs a
  * production build, and the token is stored hashed so it cannot be recovered
  * from the database.
  */
-export async function readMagicLink(timeoutMs = 10_000): Promise<string> {
+export async function readMagicLink(timeoutMs = 15_000): Promise<string> {
   const deadline = Date.now() + timeoutMs;
+
   while (Date.now() < deadline) {
     try {
       const url = (await readFile(MAGIC_LINK_FILE, "utf8")).trim();
-      if (url) return url;
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        return url;
+      }
     } catch {
       // Not written yet.
     }
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(`No magic link appeared at ${MAGIC_LINK_FILE} within ${timeoutMs}ms`);
+
+  throw new Error(`No unused magic link appeared at ${MAGIC_LINK_FILE}`);
 }
 
 export async function clearMagicLink(): Promise<void> {
   await rm(MAGIC_LINK_FILE, { force: true });
 }
 
-/** Sign in as the seeded organizer and land on the dashboard. */
-export async function signIn(page: Page, email = "organizer@fever.local"): Promise<void> {
-  await clearMagicLink();
-
+/** Request a magic link and return it, without following it. */
+export async function requestMagicLink(
+  page: Page,
+  email = "organizer@fever.local"
+): Promise<string> {
   const response = await page.request.post("/api/auth/sign-in/magic-link", {
     data: { email, callbackURL: "/dashboard" },
   });
   expect(response.ok(), await response.text()).toBeTruthy();
 
-  await page.goto(await readMagicLink());
-  await page.waitForURL(/\/dashboard|\/onboarding/);
+  return readMagicLink();
+}
+
+/** Sign in as the seeded organizer and land on the dashboard. */
+export async function signIn(
+  page: Page,
+  email = "organizer@fever.local"
+): Promise<void> {
+  const link = await requestMagicLink(page, email);
+
+  // goto resolves once the redirect has been followed, so the destination can
+  // be asserted directly. waitForURL would additionally block on the `load`
+  // event, which the dashboard does not reliably reach — it keeps requests
+  // open — and that showed up as an unexplained 30s timeout under a full run.
+  await page.goto(link, { waitUntil: "domcontentloaded" });
+  expect(page.url()).toMatch(/\/dashboard|\/onboarding/);
 }
 
 /** The seeded event that is on sale. */
