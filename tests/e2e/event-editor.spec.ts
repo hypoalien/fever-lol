@@ -187,3 +187,63 @@ test.describe("venues", () => {
     expect(response.status()).toBe(400);
   });
 });
+
+test.describe("payment settings", () => {
+  test("keys save, and secrets never come back", async ({ request }) => {
+    // The form used to post `paymentGateway` to an endpoint whose schema
+    // requires `gateway`, so every save returned 400 and nobody noticed.
+    const saved = await request.post("/api/payment-config", {
+      data: {
+        gateway: "razorpay",
+        accountHolderName: "Lantern Collective",
+        razorpayKeyId: "rzp_test_abcdefghij",
+        razorpayKeySecret: "secret_abcdefghijklmnop",
+      },
+    });
+    expect(saved.status(), await saved.text()).toBe(200);
+
+    const read = await request.get("/api/payment-config");
+    const config = (await read.json()) as Record<string, unknown>;
+
+    expect(config.gateway).toBe("razorpay");
+    expect(config.accountHolderName).toBe("Lantern Collective");
+
+    // Masked, never whole — and the secret is a boolean, not a value.
+    expect(config.razorpayKeyId).not.toBe("rzp_test_abcdefghij");
+    expect(String(config.razorpayKeyId)).toContain("•");
+    expect(config.razorpayKeySecretSet).toBe(true);
+    expect(config.razorpayKeySecret).toBeUndefined();
+
+    // Nothing anywhere in the response may contain the secret.
+    expect(JSON.stringify(config)).not.toContain("secret_abcdefghijklmnop");
+  });
+
+  test("a blank secret leaves the stored one alone", async ({ request }) => {
+    await request.post("/api/payment-config", {
+      data: {
+        gateway: "razorpay",
+        razorpayKeyId: "rzp_test_abcdefghij",
+        razorpayKeySecret: "secret_abcdefghijklmnop",
+      },
+    });
+
+    // What the rebuilt form sends when only the account name changed. The old
+    // one round-tripped the *masked* key id back, overwriting the real key.
+    const again = await request.post("/api/payment-config", {
+      data: { gateway: "razorpay", accountHolderName: "Renamed" },
+    });
+    expect(again.status(), await again.text()).toBe(200);
+
+    const config = (await (
+      await request.get("/api/payment-config")
+    ).json()) as Record<string, unknown>;
+    expect(config.accountHolderName).toBe("Renamed");
+  });
+
+  test("an unknown gateway is rejected", async ({ request }) => {
+    const response = await request.post("/api/payment-config", {
+      data: { gateway: "paypal" },
+    });
+    expect(response.status()).toBe(400);
+  });
+});

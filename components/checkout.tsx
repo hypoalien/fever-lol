@@ -248,7 +248,9 @@ export function Checkout() {
       }
 
       const options: RazorpayOptions = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        // From the order response, so the key always matches the account the
+        // order was opened on — organizers can connect their own.
+        key: order.keyId,
         amount: order.amount,
         currency: order.currency,
         name: checkoutData.event.eventName ?? "Tickets",
@@ -260,7 +262,7 @@ export function Checkout() {
           email: customerInfo.email,
           contact: customerInfo.phone,
         },
-        theme: { color: "#1B3FE0" },
+        theme: { color: "#12151A" },
       };
 
       toast.promise(

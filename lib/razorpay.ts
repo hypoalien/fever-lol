@@ -31,6 +31,20 @@ export function getPlatformCredentials(): RazorpayCredentials {
   return { keyId, keySecret };
 }
 
+/**
+ * Whether an event may fall back to the platform's own Razorpay account when
+ * its organizer has not connected one.
+ *
+ * Off by default, and it should stay off for any multi-tenant deployment: the
+ * platform would be collecting money it has no way to pay out, which is both
+ * untrue to what the landing page promises buyers and a regulated activity.
+ * It exists for the single-tenant case — someone self-hosting this for their
+ * own events — and for local development.
+ */
+export function platformFallbackAllowed(): boolean {
+  return process.env.ALLOW_PLATFORM_GATEWAY_FALLBACK === "true";
+}
+
 export function isRazorpayConfigured(): boolean {
   try {
     getPlatformCredentials();

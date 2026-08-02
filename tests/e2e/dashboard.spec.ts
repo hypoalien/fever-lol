@@ -14,10 +14,11 @@ test.describe("dashboard", () => {
   test("the overview renders real figures, not NaN", async ({ page }) => {
     await page.goto("/dashboard");
 
-    await expect(page.getByText("Total Revenue")).toBeVisible();
+    await expect(page.getByText("Revenue this month")).toBeVisible();
+    await expect(page.getByText("Tickets sold")).toBeVisible();
 
-    // The seeded organizer has no orders, so zero is correct — what must not
-    // appear is NaN, which is what reading a renamed field produces.
+    // What must not appear is NaN, which is what reading a renamed field
+    // produces.
     const body = await page.locator("body").innerText();
     expect(body).not.toContain("NaN");
     expect(body).not.toContain("undefined");
@@ -54,6 +55,42 @@ test.describe("dashboard", () => {
       expect(body, `${path} renders NaN`).not.toContain("NaN");
       expect(body, `${path} renders undefined`).not.toContain("undefined");
     }
+  });
+
+  test("every module page has a heading and a description", async ({ page }) => {
+    // The shell drifted before: orders and attendees had no heading at all
+    // and discounts had one at a different size.
+    for (const [path, heading] of [
+      ["/dashboard", "Overview"],
+      ["/dashboard/events", "Events"],
+      ["/dashboard/venues", "Venues"],
+      ["/dashboard/orders", "Orders"],
+      ["/dashboard/attendees", "Attendees"],
+      ["/dashboard/discounts", "Discounts"],
+      ["/dashboard/settings", "Settings"],
+    ]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await expect(
+        page.getByRole("heading", { level: 1, name: heading })
+      ).toBeVisible();
+    }
+  });
+
+  test("sidebar navigation does not reload the document", async ({ page }) => {
+    // The sidebar used plain anchors, so every click tore down the app. If a
+    // full navigation happens this marker is gone.
+    await page.goto("/dashboard");
+    await page.evaluate(() => {
+      (window as unknown as { __spa: boolean }).__spa = true;
+    });
+
+    await page.getByRole("link", { name: "Orders" }).click();
+    await expect(page).toHaveURL(/\/dashboard\/orders/);
+
+    const survived = await page.evaluate(
+      () => (window as unknown as { __spa?: boolean }).__spa === true
+    );
+    expect(survived, "sidebar click caused a full page load").toBe(true);
   });
 
   test("the venues list shows the seeded venues", async ({ page }) => {

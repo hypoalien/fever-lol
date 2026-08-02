@@ -14,7 +14,12 @@ import {
   findOrderByPayment,
   recordIncident,
 } from "@/lib/data/orders";
-import { getRazorpayClient, verifyPaymentSignature } from "@/lib/razorpay";
+import { getOrganizerRazorpayCredentials } from "@/lib/data/payment-config";
+import {
+  getRazorpayClient,
+  verifyPaymentSignature,
+  type RazorpayCredentials,
+} from "@/lib/razorpay";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { flushAnalytics, trackServer } from "@/lib/analytics/server";
 import { log } from "@/lib/log";
@@ -83,12 +88,21 @@ export async function POST(
       );
     }
 
+    // Verified against whichever account minted the order. Checking an
+    // organizer-account payment with the platform secret would reject every
+    // legitimate signature.
+    const credentials: RazorpayCredentials | undefined =
+      (await getOrganizerRazorpayCredentials(loaded.event.userId)) ?? undefined;
+
     if (
-      !verifyPaymentSignature({
-        razorpayOrderId: gatewayOrderId,
-        razorpayPaymentId: gatewayPaymentId,
-        signature,
-      })
+      !verifyPaymentSignature(
+        {
+          razorpayOrderId: gatewayOrderId,
+          razorpayPaymentId: gatewayPaymentId,
+          signature,
+        },
+        credentials?.keySecret
+      )
     ) {
       trackServer(ANALYTICS_EVENTS.paymentFailed, checkoutId, {
         checkoutId,
@@ -111,7 +125,9 @@ export async function POST(
     // The signature proves the ids were minted by us; this proves money moved.
     let payment;
     try {
-      payment = await getRazorpayClient().payments.fetch(gatewayPaymentId);
+      payment = await getRazorpayClient(credentials).payments.fetch(
+        gatewayPaymentId
+      );
     } catch (error) {
       log.exception("Could not fetch payment from Razorpay", error, { route: "api/checkout/[checkoutId]/confirm" });
       return Response.json(
