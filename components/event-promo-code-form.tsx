@@ -26,6 +26,7 @@ import {
 import { PlusCircle, Trash, Tag } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { usePrice } from "@/hooks/use-price";
+import type { EventFormSectionProps } from "@/types/event-form";
 interface PromoCode {
   code: string;
   discountType: "flat" | "percent";
@@ -34,7 +35,7 @@ interface PromoCode {
   minOrderValue?: number;
 }
 
-export function EventPromoCodeForm({ form }: any) {
+export function EventPromoCodeForm({ form }: EventFormSectionProps) {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const { currency } = usePrice();
 

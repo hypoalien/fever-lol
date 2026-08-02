@@ -20,8 +20,9 @@ import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import Image from "next/image";
 import { Input } from "./ui/input";
+import type { EventFormSectionProps } from "@/types/event-form";
 
-export function EventFlyer({ form }: any) {
+export function EventFlyer({ form }: EventFormSectionProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 

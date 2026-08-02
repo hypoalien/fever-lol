@@ -48,6 +48,7 @@ interface StateOptions {
   [key: string]: { value: string; label: string }[];
 }
 import { FormField, FormItem, FormMessage } from "@/components/ui/form";
+import type { EventFormSectionProps } from "@/types/event-form";
 const stateOptions: StateOptions = {
   US: [
     { value: "AL", label: "Alabama" },
@@ -166,7 +167,7 @@ interface VenueForm {
   timeZone: string;
   mapsUrl?: string;
 }
-export function EventVenueSelection({ form }: { form: any }) {
+export function EventVenueSelection({ form }: EventFormSectionProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -261,11 +262,7 @@ export function EventVenueSelection({ form }: { form: any }) {
     }));
   };
   return (
-    <FormField
-      control={form.control}
-      name="id"
-      render={({}) => (
-        <FormItem>
+    <FormItem>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -558,8 +555,6 @@ export function EventVenueSelection({ form }: { form: any }) {
             </Drawer>
           </Card>
           <FormMessage />
-        </FormItem>
-      )}
-    />
+    </FormItem>
   );
 }

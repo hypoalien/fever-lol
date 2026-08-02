@@ -20,13 +20,17 @@ export default function OrdersPage() {
       .post(`/api/orders`, { eventId })
       .then((response) => {
         const allOrders = response.data?.orders;
-        const transformedOrders = allOrders.map((order:any) => ({
-          ...order,
-          ticketDetails: order.ticketDetails.map((ticket:any) => ({
-            ...ticket,
-            price: Number(ticket.price), // Ensure price is a number
-          })),
-        }));
+        const transformedOrders = (allOrders ?? []).map(
+          (order: Record<string, unknown>) => ({
+            ...order,
+            ticketDetails: (
+              (order.ticketDetails as Array<Record<string, unknown>>) ?? []
+            ).map((ticket) => ({
+              ...ticket,
+              price: Number(ticket.price),
+            })),
+          })
+        );
         const cleanedOrder = z.array(OrderSchema).parse(transformedOrders);
         setOrders(cleanedOrder);
         setIsLoading(false);

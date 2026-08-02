@@ -33,66 +33,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-const formSchema = z.object({
-  eventName: z.string().min(6, "Event name must be at least 6 characters."),
-  eventDescription: z
-    .string()
-    .min(10, "Description must be at least 10 characters."),
-  eventFlyer: z.string({ error: "Event flyer is required" }),
-  timings: z
-    .array(
-      z.object({
-        date: z.date({ error: "Start date is required." }),
-        startTime: z.string().min(1, "Start time is required"),
-        endTime: z.string().min(1, "End time is required"),
-      })
-    )
-    .nonempty("At least one timing is required."),
-  promoCodes: z.array(
-    z.object({
-      code: z.string(),
-      discountType: z.string(),
-      discountValue: z.number(),
-      minOrderValue: z.number(),
-    })
-  ),
-  status: z.string(),
-  ticketVariants: z
-    .array(
-      z.object({
-        type: z.string().min(2, "Ticket name must be at least 2 characters."),
-        description: z
-          .string()
-          .min(6, "Description must be at least 6 characters."),
-        quantity: z.string().optional(),
-        remaining: z.string().optional(),
-        price: z.string({ error: "Ticket price is required" }),
-      })
-    )
-    .optional(),
-  platformFee: z.string({
-    error: "Please select who pays the platform fee",
-  }),
-  paymentGatewayFee: z.string({
-    error: "Please select who pays the processing fee",
-  }),
-
-  venue: z
-    .object({
-      id: z.string(),
-      venueName: z.string(),
-      address: z.string(),
-      city: z.string(),
-      state: z.string(),
-      country: z.string(),
-      capacity: z.number(),
-      timeZone: z.string(),
-      mapsUrl: z.string().optional(),
-    })
-    .nullable(),
-});
-
-type FormSchema = z.infer<typeof formSchema>;
+import {
+  eventFormSchema,
+  type EventFormValues,
+} from "@/types/event-form";
+type FormSchema = EventFormValues;
 
 export default function EventForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -103,7 +48,7 @@ export default function EventForm() {
   const [showPublishDialog, setShowPublishDialog] = useState(false);
 
   const form = useForm<FormSchema>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(eventFormSchema),
     defaultValues: {
       eventName: "",
       eventDescription: "",
@@ -137,7 +82,7 @@ export default function EventForm() {
       if (data.timings?.length) {
         form.setValue(
           "timings",
-          data.timings.map((timing: any) => ({
+          data.timings.map((timing: { date: string | Date; startTime: string; endTime: string }) => ({
             date: new Date(timing.date),
             startTime: timing.startTime,
             endTime: timing.endTime,

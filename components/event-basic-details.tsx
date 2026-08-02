@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import type { EventFormSectionProps } from "@/types/event-form";
 
-export function EventBasicDetails({ form }: any) {
+export function EventBasicDetails({ form }: EventFormSectionProps) {
   return (
     <Card>
       <CardHeader>

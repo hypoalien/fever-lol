@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, type Row } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader } from "./data-table-column-header";
@@ -138,7 +138,7 @@ export const columns: ColumnDef<AttendeeInfo>[] = [
   },
 ];
 
-const CheckInCell = ({ row }: { row: any }) => {
+const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCheckIn = async () => {

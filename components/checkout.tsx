@@ -12,6 +12,7 @@ import { MapPin, Loader2 } from "lucide-react";
 import { Calendar as CalendarIcon, Clock as ClockIcon } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { errorMessage } from "@/lib/errors";
 
 interface Timing {
   date: string;
@@ -150,12 +151,10 @@ export function Checkout() {
         );
         toast.success("Coupon applied successfully!");
       }
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to apply coupon";
+    } catch (error: unknown) {
       setCouponMessage({
         type: "error",
-        message: errorMessage,
+        message: errorMessage(error, "Failed to apply coupon"),
       });
     } finally {
       setIsApplyingCoupon(false);
@@ -168,7 +167,9 @@ export function Checkout() {
 
   const { totals, currency } = checkoutData;
 
-  const handlePaymentSuccess = async (paymentResponse: any) => {
+  const handlePaymentSuccess = async (
+    paymentResponse: RazorpayHandlerResponse
+  ) => {
     try {
       // One call: the server verifies the signature with Razorpay, recomputes
       // the amount from the stored checkout, reserves stock and issues tickets.
@@ -186,12 +187,14 @@ export function Checkout() {
       router.push(
         `/checkout/${checkoutId}/success?orderId=${response.data.orderId}`
       );
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.error ??
-        "We could not confirm your payment. Please contact support with your payment id.";
+    } catch (error: unknown) {
       console.error("Order confirmation failed:", error);
-      toast.error(message);
+      toast.error(
+        errorMessage(
+          error,
+          "We could not confirm your payment. Please contact support with your payment id."
+        )
+      );
     }
   };
   const validateForm = () => {
@@ -238,12 +241,18 @@ export function Checkout() {
       });
       const order = response.data;
 
-      const options = {
+      const Razorpay = window.Razorpay;
+      if (!Razorpay) {
+        toast.error("Payment system not available, please try again");
+        return;
+      }
+
+      const options: RazorpayOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
-        name: checkoutData.event.eventName,
-        description: `Tickets for ${checkoutData.event.eventName}`,
+        name: checkoutData.event.eventName ?? "Tickets",
+        description: `Tickets for ${checkoutData.event.eventName ?? "this event"}`,
         order_id: order.id,
         handler: handlePaymentSuccess,
         prefill: {
@@ -251,21 +260,18 @@ export function Checkout() {
           email: customerInfo.email,
           contact: customerInfo.phone,
         },
-        theme: {
-          color: "#3399cc",
-        },
+        theme: { color: "#1B3FE0" },
       };
 
       toast.promise(
-        new Promise((resolve) => {
-          const razorpay = new (window as any).Razorpay({
+        new Promise<RazorpayHandlerResponse>((resolve) => {
+          new Razorpay({
             ...options,
-            handler: (response: any) => {
-              handlePaymentSuccess(response);
+            handler: (response) => {
+              void handlePaymentSuccess(response);
               resolve(response);
             },
-          });
-          razorpay.open();
+          }).open();
         }),
         {
           loading: "Processing payment...",
@@ -273,11 +279,9 @@ export function Checkout() {
           error: "Payment initiation failed",
         }
       );
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.error ?? "Payment initiation failed";
+    } catch (error: unknown) {
       console.error("Payment initiation failed:", error);
-      toast.error(message);
+      toast.error(errorMessage(error, "Payment initiation failed"));
     } finally {
       setIsLoading(false);
     }

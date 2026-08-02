@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Button } from "./ui/button"; // Assuming you're using a UI library like shadcn/ui
 
-const TruncateText = ({ text, maxLength = 150 }: any) => {
+interface TruncateTextProps {
+  text: string;
+  maxLength?: number;
+}
+
+const TruncateText = ({ text, maxLength = 150 }: TruncateTextProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const truncatedText = text.slice(0, maxLength);

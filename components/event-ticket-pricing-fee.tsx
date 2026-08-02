@@ -22,8 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { EventFormSectionProps } from "@/types/event-form";
 
-export function EventTicketPricingFees({ form }: any) {
+export function EventTicketPricingFees({ form }: EventFormSectionProps) {
   return (
     <Card className="h-fit">
       <CardHeader>

@@ -37,6 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useState, useEffect } from "react";
+import type { EventFormSectionProps } from "@/types/event-form";
 
 interface TimeSlot {
   date: Date;
@@ -44,7 +45,7 @@ interface TimeSlot {
   endTime: string;
 }
 
-export function EventTimeSlotsManager({ form }: any) {
+export function EventTimeSlotsManager({ form }: EventFormSectionProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [date, setDate] = useState<Date>();

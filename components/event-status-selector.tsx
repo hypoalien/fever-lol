@@ -32,8 +32,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import type { EventFormSectionProps } from "@/types/event-form";
 
-export function EventStatusSelector({ form }: any) {
+export function EventStatusSelector({ form }: EventFormSectionProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 

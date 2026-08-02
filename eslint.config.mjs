@@ -18,9 +18,10 @@ export default [
   ...typescript,
   {
     rules: {
-      // The Mongo documents flowing through the API routes are untyped today.
-      // This is re-enabled once the Drizzle port gives them real types.
-      "@typescript-eslint/no-explicit-any": "off",
+      // Enabled now that the Drizzle port has given every route real types
+      // and the remaining `any`s have been replaced. Fix the code, not the
+      // rule, if this starts failing.
+      "@typescript-eslint/no-explicit-any": "error",
 
       // eslint-config-next 16 turns on the React Compiler rule set, which
       // flags 34 pre-existing issues across ~20 components (mostly state

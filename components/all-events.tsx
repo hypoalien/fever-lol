@@ -122,7 +122,8 @@ export default function EventsComponent() {
         id: string;
         status?: string;
         timings?: Timing[];
-        [key: string]: any; // For other potential properties
+        // Anything else the endpoint returns is not read here.
+        [key: string]: unknown;
       }
 
       const filtered = events.filter((event: Event) => {

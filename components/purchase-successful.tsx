@@ -18,8 +18,27 @@ import QRCode from "qrcode";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 
+/** The subset of the checkout payload this screen renders. */
+interface PurchaseCheckoutData {
+  currency: string;
+  items: Array<{
+    type: string;
+    quantity: number;
+    unitPriceMinor: number;
+    lineTotalMinor: number;
+  }>;
+  totals: { totalMinor: number };
+  event: {
+    id: string;
+    eventName: string | null;
+    eventFlyer: string | null;
+    timings: Array<{ date: string; startTime: string; endTime: string | null }>;
+  };
+  venue: { venueName: string; city: string | null } | null;
+}
+
 interface PurchaseSuccessfulProps {
-  checkoutData: any;
+  checkoutData: PurchaseCheckoutData;
 }
 
 export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
@@ -54,7 +73,7 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
       flyerImg.crossOrigin = "anonymous";
       await new Promise((resolve) => {
         flyerImg.onload = resolve;
-        flyerImg.src = checkoutData.event.eventFlyer;
+        flyerImg.src = checkoutData.event.eventFlyer ?? "";
       });
 
       const canvas = await html2canvas(ticket, {
@@ -147,7 +166,7 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
           <CardContent className="grid md:grid-cols-2 gap-6 p-6">
             <div className="flex flex-col gap-4">
               <Image
-                src={checkoutData.event.eventFlyer}
+                src={checkoutData.event.eventFlyer ?? "/og-image.png"}
                 alt="Event Flyer"
                 width={500}
                 height={500}
@@ -175,14 +194,18 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4" />
                   <span>
-                    {checkoutData.venue.venueName}, {checkoutData.venue.city}
+                    {checkoutData.venue
+                      ? [checkoutData.venue.venueName, checkoutData.venue.city]
+                          .filter(Boolean)
+                          .join(", ")
+                      : "Venue to be announced"}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {checkoutData.event.timings.map(
-                  (timing: any, index: number) => (
+                  (timing, index) => (
                     <div key={index} className="bg-muted/50 p-3 rounded-lg">
                       <div className="flex items-center gap-2 font-medium">
                         <Calendar className="w-4 h-4" />
@@ -202,7 +225,7 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
               <div>
                 <h4 className="font-medium mb-2">Ticket Details</h4>
                 <div className="space-y-2">
-                  {checkoutData.cart.map((item: any, index: number) => (
+                  {checkoutData.items.map((item, index) => (
                     <div
                       key={index}
                       className="flex justify-between py-2 border-b"
@@ -211,7 +234,10 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
                         {item.type} × {item.quantity}
                       </span>
                       <span>
-                        {item.price} {checkoutData.event.currency}
+                        {new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: checkoutData.currency,
+                        }).format(item.lineTotalMinor / 100)}
                       </span>
                     </div>
                   ))}
