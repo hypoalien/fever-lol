@@ -37,6 +37,7 @@ import {
   eventFormSchema,
   type EventFormValues,
 } from "@/types/event-form";
+import { errorMessage } from "@/lib/errors";
 type FormSchema = EventFormValues;
 
 export default function EventForm() {
@@ -134,7 +135,11 @@ export default function EventForm() {
       await axios.post(`/api/events/${eventId}`, form.getValues());
       toast.success("Event details saved successfully!");
     } catch (error) {
+      // Previously this only logged, so a rejected save looked identical to a
+      // successful one — the organizer saw nothing at all.
       console.error("Error saving event:", error);
+      toast.error(errorMessage(error, "Could not save this event"));
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -145,10 +150,11 @@ export default function EventForm() {
     setIsLoading(true);
     try {
       await axios.delete(`/api/events/${eventId}`);
-      window.location.href = "/dashboard/events";
       toast.success("Event deleted successfully!");
+      window.location.href = "/dashboard/events";
     } catch (error) {
       console.error("Error deleting event:", error);
+      toast.error(errorMessage(error, "Could not delete this event"));
     } finally {
       setIsLoading(false);
       setShowDeleteDialog(false);
@@ -161,10 +167,13 @@ export default function EventForm() {
     try {
       await handleSave();
       await axios.post(`/api/events/${eventId}`, { status: "active" });
-      window.location.href = "/dashboard/events";
       toast.success("Event published successfully!");
+      window.location.href = "/dashboard/events";
     } catch (error) {
+      // The server states exactly what the event is missing; show that rather
+      // than a generic failure the organizer cannot act on.
       console.error("Error publishing event:", error);
+      toast.error(errorMessage(error, "Could not publish this event"));
     } finally {
       setIsSaving(false);
       setShowPublishDialog(false);

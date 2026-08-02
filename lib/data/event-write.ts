@@ -2,6 +2,9 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
+
+/** The transaction handle Drizzle hands to a `db.transaction` callback. */
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 import {
   eventTimings,
   events,
@@ -53,8 +56,13 @@ export const EventUpdateSchema = z.object({
   platformFee: z.enum(["organizer", "user"]).optional(),
   paymentGatewayFee: z.enum(["organizer", "user"]).optional(),
   venue: z.object({ id: z.string().uuid() }).nullable().optional(),
-  // Accepted, but only the two transitions below are honoured.
-  status: z.enum(["draft", "active", "cancelled"]).optional(),
+  // The editor posts its whole form on save, and that form initialises status
+  // to "". Empty means "leave it alone"; only the two transitions below are
+  // ever honoured.
+  status: z
+    .union([z.enum(["draft", "active", "cancelled"]), z.literal("")])
+    .optional()
+    .transform((value) => (value === "" ? undefined : value)),
 });
 
 export type EventUpdateInput = z.infer<typeof EventUpdateSchema>;
@@ -89,23 +97,38 @@ function toInteger(value: string | number, label: string): number {
 }
 
 /**
- * Publishing requires an event to actually be sellable. The previous code let
- * a `status: "active"` land with no name, no dates and no tickets.
+ * Publishing requires an event to actually be sellable.
+ *
+ * Checked against what is stored, not against the request. The editor saves
+ * the form and then publishes with `{ status: "active" }` alone, so validating
+ * the payload meant a fully configured event could never be published — and an
+ * empty one could have been, had the payload happened to carry the fields.
  */
-function assertPublishable(input: EventUpdateInput, currency: string): void {
-  const problems: string[] = [];
-  if (!input.eventName?.trim()) problems.push("a name");
-  if (!input.timings?.length) problems.push("at least one date");
-  if (!input.ticketVariants?.length) problems.push("at least one ticket type");
-  if (!input.venue?.id) problems.push("a venue");
+async function assertPublishable(
+  tx: Transaction,
+  eventId: string
+): Promise<void> {
+  const [event] = await tx
+    .select({ eventName: events.eventName, venueId: events.venueId })
+    .from(events)
+    .where(eq(events.id, eventId));
 
-  for (const variant of input.ticketVariants ?? []) {
-    try {
-      toMinor(variant.price, currency);
-    } catch {
-      problems.push(`a valid price for "${variant.type}"`);
-    }
-  }
+  const [timings, variants] = await Promise.all([
+    tx
+      .select({ id: eventTimings.id })
+      .from(eventTimings)
+      .where(eq(eventTimings.eventId, eventId)),
+    tx
+      .select({ id: ticketVariants.id })
+      .from(ticketVariants)
+      .where(eq(ticketVariants.eventId, eventId)),
+  ]);
+
+  const problems: string[] = [];
+  if (!event?.eventName?.trim()) problems.push("a name");
+  if (timings.length === 0) problems.push("at least one date");
+  if (variants.length === 0) problems.push("at least one ticket type");
+  if (!event?.venueId) problems.push("a venue");
 
   if (problems.length > 0) {
     throw new EventWriteError(
@@ -137,7 +160,6 @@ export async function updateOwnedEvent(
 
   const currency = existing.currency;
   const publishing = input.status === "active" && existing.status !== "active";
-  if (publishing) assertPublishable(input, currency);
 
   await db.transaction(async (tx) => {
     await tx
@@ -158,8 +180,7 @@ export async function updateOwnedEvent(
         ...(input.venue !== undefined && {
           venueId: input.venue?.id ?? null,
         }),
-        // Only publish and cancel are honoured; nothing else may set status.
-        ...(publishing && { status: "active" as const, publishedAt: new Date() }),
+        // Status is set below, after the child rows exist and can be checked.
         ...(input.status === "cancelled" && { status: "cancelled" as const }),
         updatedAt: new Date(),
       })
@@ -255,6 +276,16 @@ export async function updateOwnedEvent(
           }))
         );
       }
+    }
+    if (publishing) {
+      // After the writes above, so validation sees the saved state. Throwing
+      // here rolls the whole save back rather than leaving a half-published
+      // event behind.
+      await assertPublishable(tx, eventId);
+      await tx
+        .update(events)
+        .set({ status: "active", publishedAt: new Date() })
+        .where(eq(events.id, eventId));
     }
   });
 }
