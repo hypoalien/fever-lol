@@ -26,7 +26,11 @@ Command.displayName = CommandPrimitive.displayName
 const CommandDialog = ({ children, ...props }: DialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0">
+      {/* Anchored near the top rather than centred: a palette grows downward
+          as you type, and a vertically centred one moves under the cursor
+          every keystroke. `focus:outline-none` because Radix focuses the
+          content element on open, which drew a ring around the search row. */}
+      <DialogContent className="top-[12%] max-w-xl translate-y-0 gap-0 overflow-hidden p-0 shadow-2xl focus:outline-none [&>button]:hidden">
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
           {children}
         </Command>
@@ -60,7 +64,10 @@ const CommandList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.List
     ref={ref}
-    className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
+    className={cn(
+      "max-h-[min(420px,60vh)] overflow-y-auto overflow-x-hidden overscroll-contain",
+      className
+    )}
     {...props}
   />
 ))

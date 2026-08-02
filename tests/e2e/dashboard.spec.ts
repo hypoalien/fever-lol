@@ -93,6 +93,30 @@ test.describe("dashboard", () => {
     expect(survived, "sidebar click caused a full page load").toBe(true);
   });
 
+  test("cmd-k opens the palette and jumps to a section", async ({ page }) => {
+    await page.goto("/dashboard");
+    // The shortcut is registered by the palette, so wait for its visible half
+    // rather than racing the key against hydration.
+    const trigger = page.getByRole("button", { name: /Search/ });
+    await expect(trigger).toBeVisible();
+
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(
+      page.getByPlaceholder("Search, or jump to a section")
+    ).toBeVisible();
+
+    // Typing narrows to the seeded event, so the palette is reading the same
+    // cache the pages use rather than a separate fetch.
+    await page.keyboard.type("midnight");
+    await expect(page.getByText("Midnight Frequencies")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("ControlOrMeta+k");
+    await page.keyboard.type("orders");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/dashboard\/orders/);
+  });
+
   test("the venues list shows the seeded venues", async ({ page }) => {
     await page.goto("/dashboard/venues");
 

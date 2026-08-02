@@ -169,7 +169,11 @@
   /* One focus treatment across the app, matching the landing page. The
      default ring was tied to the old lime and was invisible on light
      surfaces. */
-  :focus-visible {
+  /* A visible ring on everything focusable, so the keyboard path is never
+     invisible. Excluded: the command palette's search field, which fills the
+     top of its own dialog — a ring there frames the dialog's chrome rather
+     than marking a target, and the palette is already the focused surface. */
+  :focus-visible:not([cmdk-input]) {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }
