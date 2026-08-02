@@ -1,0 +1,46 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fever-lol",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+
+  // Required: postgres.js, node:crypto and Better Auth all reach for Node
+  // built-ins. With a 2025-or-later compatibility date this also populates
+  // process.env from vars and secrets, so no extra flag is needed.
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  "observability": {
+    "enabled": true
+  },
+
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://fever.lol"
+  },
+
+  // Hyperdrive pools Postgres connections at the edge, which matters because
+  // each Worker isolate would otherwise open its own. Create it with:
+  //   wrangler hyperdrive create fever-lol-db --connection-string "<neon url>"
+  // then paste the id below. DATABASE_URL is derived from this binding at
+  // runtime — see lib/db/index.ts.
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "localConnectionString": "postgres://fever:fever@localhost:5433/fever_lol"
+    }
+  ],
+
+  // Event flyers. Replaces the S3 bucket; same presigned-upload shape.
+  "r2_buckets": [
+    {
+      "binding": "FLYERS",
+      "bucket_name": "fever-lol-flyers",
+      "preview_bucket_name": "fever-lol-flyers-preview"
+    }
+  ]
+}

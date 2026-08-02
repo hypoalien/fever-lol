@@ -118,6 +118,19 @@ drizzle/          generated migrations
 scripts/          seed, one-off imports
 ```
 
+## Deploying
+
+The hosted version runs on Cloudflare Workers via OpenNext. See
+[DEPLOYING.md](DEPLOYING.md) for Hyperdrive, R2 and secrets.
+
+```bash
+bun run cf:preview   # run the real Worker runtime locally
+bun run cf:deploy
+```
+
+Nothing in the application code is Cloudflare-specific, so it also runs on any
+Node host — see below.
+
 ## Self-hosting
 
 The Docker Compose file runs the app and a database together:
