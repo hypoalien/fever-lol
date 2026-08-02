@@ -100,7 +100,7 @@ export function TicketScanner({ isOpen, onClose }: TicketScannerProps) {
         </DrawerHeader>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="container max-w-xl  mx-auto p-6">
+          <div className="container max-w-xl mx-auto p-6">
             {/* Initial Scan State */}
             {!scanning && !tickets && !loading && !error && (
               <div className="flex flex-col items-center justify-center space-y-6 py-12">
@@ -126,8 +126,8 @@ export function TicketScanner({ isOpen, onClose }: TicketScannerProps) {
 
             {/* Scanner State */}
             {scanning && (
-              <div className="space-y-4 ">
-                <div className="w-fit h-fit ">
+              <div className="space-y-4">
+                <div className="w-fit h-fit">
                   <Scanner
                     onScan={handleScan}
                     // The library reports IScannerError, not Error.
@@ -189,17 +189,17 @@ export function TicketScanner({ isOpen, onClose }: TicketScannerProps) {
                       className={cn(
                         "rounded-lg border p-4 transition-colors text-black",
                         ticket.validation.isValid
-                          ? "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800"
-                          : "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800"
+                          ? "bg-success/10 border-success/30  "
+                          : "bg-destructive/10 border-destructive/30  "
                       )}
                     >
                       <div className="space-y-4">
                         {/* Status Header */}
                         <div className="flex items-center space-x-3">
                           {ticket.validation.isValid ? (
-                            <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-500" />
+                            <CheckCircle2 className="h-6 w-6 text-success dark:text-success" />
                           ) : (
-                            <XCircle className="h-6 w-6 text-red-600 dark:text-red-500" />
+                            <XCircle className="h-6 w-6 text-destructive dark:text-destructive" />
                           )}
                           <h4 className="font-semibold">
                             {ticket.validation.message}

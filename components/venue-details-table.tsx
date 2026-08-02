@@ -75,7 +75,7 @@ export function VenuesTable() {
   if (error) {
     return (
       <div className="flex justify-center items-center p-4">
-        <p className="text-red-500">{error}</p>
+        <p className="text-destructive">{error}</p>
       </div>
     );
   }
@@ -114,10 +114,7 @@ export function VenuesTable() {
                   placeholder="Search venues..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 w-[200px] lg:w-[300px] pl-9 border-border/30 
-                  focus:border-primary focus:ring-primary/20 
-                  bg-background/50 backdrop-blur-sm
-                  placeholder:text-muted-foreground/50"
+                  className="h-10 w-[200px] lg:w-[300px] pl-9 border-border/30 focus:border-primary focus:ring-primary/20 bg-background/50 backdrop-blur-sm placeholder:text-muted-foreground/50"
                 />
                 <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground/50" />
               </div>

@@ -290,7 +290,7 @@ export function AccountForm() {
                             ? "border-green-500"
                             : field.value !== initialOrgUrl &&
                               urlAvailable === false
-                            ? "border-red-500"
+                            ? "border-destructive"
                             : ""
                         }`}
                         onChange={(e) => {
@@ -306,12 +306,12 @@ export function AccountForm() {
                     </div>
                   </FormControl>
                   {field.value !== initialOrgUrl && urlAvailable === false && (
-                    <p className="text-sm text-red-500">
+                    <p className="text-sm text-destructive">
                       This URL is already taken
                     </p>
                   )}
                   {field.value !== initialOrgUrl && urlAvailable === true && (
-                    <p className="text-sm text-green-500">URL is available</p>
+                    <p className="text-sm text-success">URL is available</p>
                   )}
                   <FormDescription>
                     <Button variant={"link"} className="flex">
@@ -379,7 +379,7 @@ export function AccountForm() {
                   </FormDescription>
                   {/* Add warning message */}
 
-                  <FormDescription className=" text-amber-500">
+                  <FormDescription className="text-amber-500">
                     {field.value
                       ? "Currency cannot be changed once saved"
                       : "Please choose carefully. Currency cannot be changed after saving"}

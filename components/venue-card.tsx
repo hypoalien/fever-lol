@@ -427,7 +427,7 @@ export const VenueCard = ({
 
                 <form onSubmit={handleSubmit}>
                   {formError && (
-                    <p className="text-red-500 text-sm mt-2">{formError}</p>
+                    <p className="text-destructive text-sm mt-2">{formError}</p>
                   )}
 
                   <div className="p-4 pb-0">
@@ -658,7 +658,7 @@ export const VenueCard = ({
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className="text-red-600"
+                              className="text-destructive"
                               onClick={() => handleDelete(venue.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />

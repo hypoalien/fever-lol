@@ -56,7 +56,7 @@ interface Venue {
 
 interface TicketVariant {
   type: string;
-  price: string;
+  priceMinor: number;
 }
 
 interface Event {
@@ -101,7 +101,7 @@ const EventCardTable = ({ events }: { events: Event[] }) => {
 
   const formatPrice = (ticketVariants: TicketVariant[]) => {
     if (!ticketVariants?.length) return "Price not set";
-    const minPrice = Math.min(...ticketVariants.map((v) => Number(v.price)));
+    const minPrice = Math.min(...ticketVariants.map((v) => v.priceMinor));
     return `From $${minPrice.toFixed(2)}`;
   };
 

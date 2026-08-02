@@ -26,11 +26,34 @@ test.describe("dashboard", () => {
     expect(body).toMatch(/[$₹€£]\s?[\d,]+/);
   });
 
-  test("the events list shows the seeded events", async ({ page }) => {
+  test("the events list shows the seeded events, priced", async ({ page }) => {
     await page.goto("/dashboard/events");
 
     await expect(page.getByText("Midnight Frequencies").first()).toBeVisible();
     await expect(page.getByText("Sunset Sessions").first()).toBeVisible();
+
+    // Lowest Early Bird tier. Reading the wrong price field renders "$NaN",
+    // which is how this was found.
+    await expect(page.getByText("From $25.00").first()).toBeVisible();
+  });
+
+  test("no screen renders NaN or undefined", async ({ page }) => {
+    // A blanket guard for the failure mode that runs through this whole
+    // codebase: a renamed field read by a client nobody updated.
+    for (const path of [
+      "/dashboard",
+      "/dashboard/events",
+      "/dashboard/venues",
+      "/dashboard/discounts",
+      "/dashboard/orders",
+      "/dashboard/attendees",
+    ]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(1200);
+      const body = await page.locator("body").innerText();
+      expect(body, `${path} renders NaN`).not.toContain("NaN");
+      expect(body, `${path} renders undefined`).not.toContain("undefined");
+    }
   });
 
   test("the venues list shows the seeded venues", async ({ page }) => {

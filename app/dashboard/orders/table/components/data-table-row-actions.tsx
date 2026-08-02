@@ -344,8 +344,8 @@ export function DataTableRowActions<TData>({
                         </div>
                       );
                     })()}
-                    <div className="flex items-center justify-between  font-semibold">
-                      <dt className="text-muted-foreground ">Payout amount</dt>
+                    <div className="flex items-center justify-between font-semibold">
+                      <dt className="text-muted-foreground">Payout amount</dt>
                       <dd>{money(orderDetails.payoutMinor)}</dd>
                     </div>
                   </dl>

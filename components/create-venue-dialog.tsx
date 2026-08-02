@@ -224,7 +224,7 @@ export function CreateVenueDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           {formError && (
-            <p className="text-red-500 text-sm mt-2">{formError}</p>
+            <p className="text-destructive text-sm mt-2">{formError}</p>
           )}
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">

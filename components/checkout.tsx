@@ -403,14 +403,14 @@ export function Checkout() {
                   id="firstName"
                   placeholder="Enter your name"
                   className={`bg-background/50 border-primary/20 focus:border-primary ${
-                    errors.firstName ? "border-red-500" : ""
+                    errors.firstName ? "border-destructive" : ""
                   }`}
                   onChange={handleInputChange}
                   value={customerInfo.firstName}
                   required
                 />
                 {errors.firstName && (
-                  <span className="text-sm text-red-500">
+                  <span className="text-sm text-destructive">
                     {errors.firstName}
                   </span>
                 )}
@@ -423,14 +423,14 @@ export function Checkout() {
                   id="lastName"
                   placeholder="Enter your last name"
                   className={`bg-background/50 border-primary/20 focus:border-primary ${
-                    errors.lastName ? "border-red-500" : ""
+                    errors.lastName ? "border-destructive" : ""
                   }`}
                   onChange={handleInputChange}
                   value={customerInfo.lastName}
                   required
                 />
                 {errors.lastName && (
-                  <span className="text-sm text-red-500">
+                  <span className="text-sm text-destructive">
                     {errors.lastName}
                   </span>
                 )}
@@ -446,14 +446,14 @@ export function Checkout() {
                   id="phone"
                   placeholder="Enter your phone number"
                   className={`bg-background/50 border-primary/20 focus:border-primary ${
-                    errors.phone ? "border-red-500" : ""
+                    errors.phone ? "border-destructive" : ""
                   }`}
                   onChange={handleInputChange}
                   value={customerInfo.phone}
                   required
                 />
                 {errors.phone && (
-                  <span className="text-sm text-red-500">{errors.phone}</span>
+                  <span className="text-sm text-destructive">{errors.phone}</span>
                 )}
               </div>
               <div className="grid gap-2">
@@ -464,7 +464,7 @@ export function Checkout() {
                   id="email"
                   placeholder="Enter your email"
                   className={`bg-background/50 border-primary/20 focus:border-primary ${
-                    errors.email ? "border-red-500" : ""
+                    errors.email ? "border-destructive" : ""
                   }`}
                   onChange={handleInputChange}
                   value={customerInfo.email}
@@ -472,7 +472,7 @@ export function Checkout() {
                   required
                 />
                 {errors.email && (
-                  <span className="text-sm text-red-500">{errors.email}</span>
+                  <span className="text-sm text-destructive">{errors.email}</span>
                 )}
               </div>
             </div>
@@ -483,7 +483,7 @@ export function Checkout() {
             <Checkbox
               id="terms"
               className={`border-primary ${
-                errors.terms ? "border-red-500" : ""
+                errors.terms ? "border-destructive" : ""
               }`}
               checked={termsAccepted}
               onCheckedChange={(checked) =>
@@ -499,7 +499,7 @@ export function Checkout() {
                 I agree to the terms and conditions *
               </Label>
               {errors.terms && (
-                <span className="text-sm text-red-500">{errors.terms}</span>
+                <span className="text-sm text-destructive">{errors.terms}</span>
               )}
             </div>
           </div>
@@ -559,7 +559,7 @@ export function Checkout() {
                 <div
                   className={`text-sm ${
                     couponMessage.type === "success"
-                      ? "text-green-500"
+                      ? "text-success"
                       : "text-destructive"
                   }`}
                 >
@@ -570,8 +570,8 @@ export function Checkout() {
 
             {totals.discountMinor > 0 && (
               <div className="flex items-center justify-between text-lg">
-                <div className="text-green-500">Discount Applied</div>
-                <div className="font-bold text-green-500">
+                <div className="text-success">Discount Applied</div>
+                <div className="font-bold text-success">
                   -{formatPrice(totals.discountMinor)}
                 </div>
               </div>

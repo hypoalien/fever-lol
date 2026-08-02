@@ -143,7 +143,7 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="relative w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
                 <div className="absolute -inset-2 rounded-full border-4 border-primary animate-ping" />
-                <CircleCheck className="text-green-500 size-10" />
+                <CircleCheck className="text-success size-10" />
               </div>
               <h2 className="text-2xl font-bold leading-tight">
                 Purchase Successful!
