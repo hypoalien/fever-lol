@@ -224,7 +224,7 @@ export function PurchaseSuccessful({ checkoutData }: PurchaseSuccessfulProps) {
         <div className="flex justify-center gap-4">
           <Button
             variant="outline"
-            onClick={() => router.push(`/events/${checkoutData.event._id}`)}
+            onClick={() => router.push(`/events/${checkoutData.event.id}`)}
           >
             <Home className="w-4 h-4 mr-2" />
             Return to Event

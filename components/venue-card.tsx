@@ -66,7 +66,7 @@ import {
 } from "@/components/ui/select";
 import React from "react";
 interface Venue {
-  _id: string;
+  id: string;
   venueName: string;
   address: string;
   city: string;
@@ -222,7 +222,7 @@ export const VenueCard = ({
 
   useEffect(() => {
     if (editingVenueId) {
-      const venueToEdit = venues.find((v) => v._id === editingVenueId);
+      const venueToEdit = venues.find((v) => v.id === editingVenueId);
       if (venueToEdit) {
         setFormData({
           venueName: venueToEdit.venueName,
@@ -323,7 +323,7 @@ export const VenueCard = ({
         const updatedVenue = await updateVenue(editingVenueId, formData);
         setVenues((prev) =>
           prev.map((venue) =>
-            venue._id === editingVenueId ? updatedVenue : venue
+            venue.id === editingVenueId ? updatedVenue : venue
           )
         );
       } else {
@@ -352,7 +352,7 @@ export const VenueCard = ({
   const handleDelete = async (venueId: string) => {
     try {
       await axios.delete(`/api/venues/${venueId}`);
-      setVenues((prev) => prev.filter((venue) => venue._id !== venueId));
+      setVenues((prev) => prev.filter((venue) => venue.id !== venueId));
       if (paginatedVenues.length === 1 && pageIndex > 0) {
         setPageIndex(pageIndex - 1);
       }
@@ -363,7 +363,7 @@ export const VenueCard = ({
   };
 
   const handleEdit = (venue: Venue) => {
-    setEditingVenueId(venue._id);
+    setEditingVenueId(venue.id);
   };
 
   const handleDialogClose = () => {
@@ -620,9 +620,9 @@ export const VenueCard = ({
                 </TableHeader>
                 <TableBody>
                   {paginatedVenues.map((venue) => (
-                    <TableRow key={venue._id}>
+                    <TableRow key={venue.id}>
                       <TableCell
-                        onClick={() => router.push(`/venue/${venue._id}`)}
+                        onClick={() => router.push(`/venue/${venue.id}`)}
                         className="font-medium cursor-pointer hover:underline"
                       >
                         {venue.venueName}
@@ -659,7 +659,7 @@ export const VenueCard = ({
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600"
-                              onClick={() => handleDelete(venue._id)}
+                              onClick={() => handleDelete(venue.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete

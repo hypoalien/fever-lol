@@ -24,7 +24,7 @@ import {
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "@/lib/auth-client";
 import { useDebouncedCallback } from "use-debounce";
 import { CheckCircleIcon, XCircleIcon } from "lucide-react";
 import {
@@ -44,8 +44,8 @@ interface UserData {
 }
 
 export function OnboardingForm() {
-  const session = useSession();
-  const user = session.data?.user;
+  const { data: session } = useSession();
+  const user = session?.user;
   const router = useRouter();
   const [urlAvailable, setUrlAvailable] = useState<boolean | null>(null);
   const [checkingUrl, setCheckingUrl] = useState(false);
@@ -205,11 +205,9 @@ export function OnboardingForm() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive hover:bg-destructive/10"
-                  onClick={() =>
-                    signOut({
-                      callbackUrl: `${window.location.origin}/login`,
-                    })
-                  }
+                  onClick={() => {
+                    void signOut().then(() => router.push("/login"));
+                  }}
                 >
                   Logout
                 </DropdownMenuItem>

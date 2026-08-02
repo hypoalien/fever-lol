@@ -48,15 +48,16 @@ interface Timing {
 }
 
 interface TicketVariant {
+  id: string;
   type: string;
-  description: string;
-  price: string | number; // Handle both string and number types
-  quantity: number;
+  description: string | null;
+  /** Integer minor units, priced server-side. */
+  priceMinor: number;
   remaining: number;
 }
 
 interface Venue {
-  _id?: string;
+  id?: string;
   venueName: string;
   address: string;
   city: string;
@@ -68,7 +69,7 @@ interface Venue {
 }
 
 interface Event {
-  _id: string;
+  id: string;
   eventName: string;
   eventDescription: string;
   eventFlyer: string;
@@ -154,11 +155,11 @@ export function EventHomeDetails() {
       const cartItems = selectedTickets
         .filter((ticket) => ticket.quantity > 0)
         .map((ticket) => ({ type: ticket.type, quantity: ticket.quantity }));
-      if (!event?._id || cartItems.length === 0) return;
+      if (!event?.id || cartItems.length === 0) return;
 
       const response = await axios.post("/api/checkout", {
         cart: cartItems,
-        eventId: event._id,
+        eventId: event.id,
       });
 
       const { checkoutId } = response.data;
@@ -170,14 +171,20 @@ export function EventHomeDetails() {
     }
   };
 
-  const totalPrice = selectedTickets.reduce(
-    (total, ticket) => total + Number(ticket.price) * Number(ticket.quantity),
+  const totalMinor = selectedTickets.reduce(
+    (total, ticket) => total + ticket.priceMinor * ticket.quantity,
     0
   );
 
-  const lowestPrice = event?.ticketVariants?.length
-    ? Math.min(...event.ticketVariants.map((variant) => Number(variant.price)))
+  const lowestPriceMinor = event?.ticketVariants?.length
+    ? Math.min(...event.ticketVariants.map((variant) => variant.priceMinor))
     : 0;
+
+  const formatPrice = (minor: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: event?.currency ?? "USD",
+    }).format(minor / 100);
 
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;
@@ -244,8 +251,7 @@ export function EventHomeDetails() {
                 <CardContent className="flex items-center justify-between gap-4 p-6">
                   <div>
                     <div className="text-2xl font-bold">
-                      From {event.currency == "USD" ? "$" : "₹"}
-                      {lowestPrice}
+                      From {formatPrice(lowestPriceMinor)}
                     </div>
                     <p className="text-muted-foreground">
                       The price you&apos;ll pay. No surprises later.
@@ -451,8 +457,7 @@ export function EventHomeDetails() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-xl font-bold">
-                From {event.currency == "USD" ? "$" : "₹"}
-                {lowestPrice}
+                From {formatPrice(lowestPriceMinor)}
               </div>
               <p className="text-sm text-muted-foreground">
                 Including all taxes
@@ -489,8 +494,7 @@ export function EventHomeDetails() {
                       {ticket.description}
                     </p>
                     <p className="text-muted-foreground">
-                      {event.currency == "USD" ? "$" : "₹"}
-                      {Number(ticket.price).toFixed(2)}
+                      {formatPrice(ticket.priceMinor)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -523,14 +527,13 @@ export function EventHomeDetails() {
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">
-                    Total: {event.currency == "USD" ? "$" : "₹"}
-                    {totalPrice.toFixed(2)}
+                    Total: {formatPrice(totalMinor)}
                   </p>
                 </div>
                 <Button
                   onClick={handleCheckout}
                   className="w-full"
-                  disabled={totalPrice === 0}
+                  disabled={totalMinor === 0}
                 >
                   Checkout
                 </Button>

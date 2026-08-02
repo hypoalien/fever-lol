@@ -1,74 +1,54 @@
-import { ObjectId } from "mongodb";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { db } from "@/lib/mongo";
+import { invalidRequest } from "@/lib/api";
 import {
+  CheckoutError,
   GATEWAY_SETTLEMENT_CURRENCY,
-  isExpired,
+  assertUsable,
+  loadCheckout,
   toGatewayAmountMinor,
-  totalsForCheckout,
-  type StoredCheckout,
-} from "@/lib/checkout";
+  totalsFor,
+} from "@/lib/data/checkout";
+import { db } from "@/lib/db";
+import { checkouts } from "@/lib/db/schema";
 import { getRazorpayClient, isRazorpayConfigured } from "@/lib/razorpay";
 
 /**
  * Open a Razorpay order for an existing checkout.
  *
- * The amount is derived from the stored checkout — it is no longer accepted
- * from the request body, where the browser previously computed it (and could
- * therefore set it to anything).
+ * The amount is derived from the stored checkout; it is no longer accepted
+ * from the request body, where the browser used to compute it.
  */
-
-const BodySchema = z.object({
-  checkoutId: z.string().min(1),
-});
+const BodySchema = z.object({ checkoutId: z.string().uuid() });
 
 export async function POST(req: Request) {
+  if (!isRazorpayConfigured()) {
+    return Response.json(
+      { error: "Payments are not configured" },
+      { status: 503 }
+    );
+  }
+
+  const parsed = BodySchema.safeParse(await req.json());
+  if (!parsed.success) return invalidRequest(parsed.error);
+  const { checkoutId } = parsed.data;
+
   try {
-    if (!isRazorpayConfigured()) {
-      return Response.json(
-        { error: "Payments are not configured" },
-        { status: 503 }
-      );
-    }
-
-    const parsed = BodySchema.safeParse(await req.json());
-    if (!parsed.success || !ObjectId.isValid(parsed.data.checkoutId)) {
-      return Response.json({ error: "Invalid checkout id" }, { status: 400 });
-    }
-    const checkoutId = parsed.data.checkoutId;
-
-    const client = await db;
-    const database = client.db();
-
-    const checkout = (await database
-      .collection("checkouts")
-      .findOne({ _id: new ObjectId(checkoutId) })) as StoredCheckout | null;
-
-    if (!checkout || !Array.isArray(checkout.items)) {
+    const loaded = await loadCheckout(checkoutId);
+    if (!loaded) {
       return Response.json({ error: "Checkout not found" }, { status: 404 });
     }
-    if (checkout.status === "paid") {
+    assertUsable(loaded);
+
+    if (loaded.event.status !== "active") {
       return Response.json(
-        { error: "This checkout has already been paid" },
+        { error: "This event is not on sale" },
         { status: 409 }
       );
     }
-    if (isExpired(checkout)) {
-      return Response.json({ error: "This checkout has expired" }, { status: 410 });
-    }
 
-    const event = await database
-      .collection("events")
-      .findOne({ _id: checkout.eventId as ObjectId });
-    if (!event) {
-      return Response.json({ error: "Event not found" }, { status: 404 });
-    }
-    if (event.status !== "active") {
-      return Response.json({ error: "This event is not on sale" }, { status: 409 });
-    }
-
-    const totals = totalsForCheckout(checkout, event);
+    const totals = totalsFor(loaded);
     if (totals.totalMinor <= 0) {
       return Response.json(
         { error: "Nothing to pay for this checkout" },
@@ -76,24 +56,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const amountMinor = toGatewayAmountMinor(totals.totalMinor, checkout.currency);
+    const amountMinor = toGatewayAmountMinor(
+      totals.totalMinor,
+      loaded.checkout.currency
+    );
 
     const order = await getRazorpayClient().orders.create({
       amount: amountMinor,
       currency: GATEWAY_SETTLEMENT_CURRENCY,
-      // Ties the gateway order back to our checkout for reconciliation.
       receipt: `checkout_${checkoutId}`,
-      notes: { checkoutId, eventId: String(checkout.eventId) },
+      notes: { checkoutId, eventId: loaded.event.id },
     });
 
-    // Remember which gateway order belongs to this checkout so confirmation can
-    // reject a signature that was minted for some other order.
-    await database
-      .collection("checkouts")
-      .updateOne(
-        { _id: new ObjectId(checkoutId) },
-        { $set: { razorpayOrderId: order.id, gatewayAmountMinor: amountMinor } }
-      );
+    // Recorded so confirmation can reject a signature minted for another order.
+    await db
+      .update(checkouts)
+      .set({ gatewayOrderId: order.id, gatewayAmountMinor: amountMinor })
+      .where(eq(checkouts.id, checkoutId));
 
     return Response.json({
       id: order.id,
@@ -101,6 +80,9 @@ export async function POST(req: Request) {
       currency: order.currency,
     });
   } catch (error) {
+    if (error instanceof CheckoutError) {
+      return Response.json({ error: error.message }, { status: error.status });
+    }
     console.error("Razorpay order creation failed:", error);
     return Response.json({ error: "Could not start payment" }, { status: 502 });
   }

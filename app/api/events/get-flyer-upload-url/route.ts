@@ -1,46 +1,85 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import crypto from "crypto";
+
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { auth } from "@/auth";
+import { z } from "zod";
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session) {
-    return new Response("Unauthorized", { status: 403 });
-  }
+import { invalidRequest } from "@/lib/api";
+import { requireUser } from "@/lib/session";
 
-  const reqBody = await req.json();
+/**
+ * Presigned URL for an event flyer upload.
+ *
+ * The object key is generated here rather than taken from the request. The
+ * previous version interpolated the client's `fileName` straight into the key,
+ * so a caller could traverse the prefix or simply overwrite another
+ * organizer's flyer by naming theirs.
+ */
 
-  if (!reqBody || !reqBody.params) {
-    return new Response("Missing required parameters", { status: 400 });
-  }
+const ALLOWED_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif",
+};
 
-  const { fileName, fileType } = reqBody.params;
+const BodySchema = z.object({
+  params: z.object({
+    fileType: z.string().refine((type) => type in ALLOWED_TYPES, {
+      message: "Only JPEG, PNG, WebP and AVIF images are accepted",
+    }),
+  }),
+});
 
-  const s3Client = new S3Client({
+let client: S3Client | null = null;
+
+function s3(): S3Client {
+  client ??= new S3Client({
     region: process.env.AWS_REGION,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
     },
   });
+  return client;
+}
 
-  const command = new PutObjectCommand({
-    Bucket: process.env.AWS_BUCKET,
-    Key: `flyer/${fileName}`,
-    ContentType: fileType,
-  });
+export async function POST(req: Request) {
+  const session = await requireUser();
+  if (!session.ok) return session.response;
+
+  const bucket = process.env.AWS_BUCKET;
+  if (!bucket || !process.env.AWS_ACCESS_KEY_ID) {
+    return Response.json(
+      { error: "File uploads are not configured" },
+      { status: 503 }
+    );
+  }
+
+  const parsed = BodySchema.safeParse(await req.json());
+  if (!parsed.success) return invalidRequest(parsed.error);
+
+  // Namespaced by user, with a random name — no client input reaches the key.
+  const extension = ALLOWED_TYPES[parsed.data.params.fileType];
+  const key = `flyer/${session.user.id}/${crypto.randomUUID()}.${extension}`;
 
   try {
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
+    const signedUrl = await getSignedUrl(
+      s3(),
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: parsed.data.params.fileType,
+      }),
+      { expiresIn: 60 }
+    );
 
-    const returnData = {
+    return Response.json({
       signedRequest: signedUrl,
-      url: `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/flyer/${fileName}`,
-    };
-
-    return new Response(JSON.stringify(returnData), { status: 200 });
-  } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify(err), { status: 500 });
+      url: `https://${bucket}.s3.amazonaws.com/${key}`,
+    });
+  } catch (error) {
+    console.error("Could not sign flyer upload:", error);
+    return Response.json({ error: "Could not start upload" }, { status: 500 });
   }
 }

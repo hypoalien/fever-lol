@@ -69,7 +69,7 @@ async function seed(): Promise<void> {
       orgName: "Lantern Collective",
       orgUrl: "lantern",
       currency: "USD",
-      emailVerified: new Date(),
+      emailVerified: true,
       onboardedAt: new Date(),
     })
     .returning();

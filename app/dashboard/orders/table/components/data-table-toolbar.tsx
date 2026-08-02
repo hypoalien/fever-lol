@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 
 interface Event {
-  _id: string;
+  id: string;
   eventName: string;
 }
 
@@ -47,7 +47,7 @@ export function DataTableToolbar<TData>({
 
   const options = events.map((event) => ({
     label: event.eventName,
-    value: event._id,
+    value: event.id,
   }));
   if (loading) {
     return <>Loading</>;

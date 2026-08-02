@@ -1,112 +1,38 @@
-// import { db } from "@/lib/mongo";
+import { z } from "zod";
 
-// export async function POST(req: Request) {
-//   try {
-//     const body = await req.json();
-//     const { slug } = body;
+import { invalidRequest } from "@/lib/api";
+import { listPublicEventsForOrg } from "@/lib/data/events";
+import { findUserByOrgUrl } from "@/lib/data/users";
 
-//     if (!slug || typeof slug !== "string") {
-//       return new Response("Invalid slug", { status: 400 });
-//     }
-
-//     const client = await db;
-//     const usersCollection = client.db().collection("users");
-//     const eventsCollection = client.db().collection("events");
-
-//     // Find user by slug
-//     const user = await usersCollection.findOne({ orgUrl: slug });
-
-//     if (!user) {
-//       return new Response("User not found", { status: 404 });
-//     }
-
-//     // Find events for this user
-//     const events = await eventsCollection.find({ userId: user._id }).toArray();
-
-//     // Format the response
-//     const response = {
-//       name: user.orgName,
-//       avatar: user.avatar || "/placeholder-user.jpg",
-//       events: events.map((event) => ({
-//         id: event._id.toString(),
-//         title: event.title,
-//         location: event.location,
-//         date: event.date,
-//         isNew: event.isNew || false,
-//         isPopular: event.isPopular || false,
-//       })),
-//     };
-
-//     return new Response(JSON.stringify(response), {
-//       status: 200,
-//       headers: {
-//         "Content-Type": "application/json",
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Error fetching user events:", error);
-//     return new Response("Internal server error", { status: 500 });
-//   }
-// }
-import { db } from "@/lib/mongo";
+/** Public organization page: the org's details plus its events on sale. */
+const BodySchema = z.object({ slug: z.string().trim().min(1).max(100) });
 
 export async function POST(req: Request) {
+  const parsed = BodySchema.safeParse(await req.json());
+  if (!parsed.success) return invalidRequest(parsed.error);
+
   try {
-    const body = await req.json();
-    const { slug } = body;
-
-    if (!slug || typeof slug !== "string") {
-      return new Response("Invalid slug", { status: 400 });
+    const organizer = await findUserByOrgUrl(parsed.data.slug);
+    if (!organizer) {
+      return Response.json({ error: "Organizer not found" }, { status: 404 });
     }
 
-    const client = await db;
-    const usersCollection = client.db().collection("users");
-    const eventsCollection = client.db().collection("events");
+    const { events } = await listPublicEventsForOrg(parsed.data.slug);
+    const mine = events.filter(Boolean);
 
-    // Find user by slug
-    const user = await usersCollection.findOne({ orgUrl: slug });
-
-    if (!user) {
-      return new Response("User not found", { status: 404 });
-    }
-
-    // Find events for this user
-    const events = await eventsCollection.find({ userId: user._id }).toArray();
-
-    // Format the response
-    const response = {
-      name: user.orgName || "N/A",
-      avatar: user.avatar || "/placeholder-user.jpg",
-      events: events.map((event) => {
-        // Find the earliest date from timings array
-        const earliestDate =
-          event.timings && event.timings.length > 0
-            ? event.timings.reduce((earliest: any, current: any) => {
-                const currentDate = new Date(current.date);
-                return earliest < currentDate ? earliest : currentDate;
-              }, new Date(event.timings[0].date))
-            : "N/A";
-
-        return {
-          id: event._id.toString(),
-          title: event.eventName || "N/A",
-          location: event.venue?.venueName || "N/A",
-          date: earliestDate !== "N/A" ? earliestDate.toISOString() : "N/A",
-          isNew: event.isNew || false,
-          isPopular: event.isPopular || false,
-          eventFlyer: event.eventFlyer,
-        };
-      }),
-    };
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
+    return Response.json({
+      name: organizer.orgName ?? organizer.orgUrl ?? "",
+      avatar: organizer.image ?? "/placeholder-user.jpg",
+      events: mine.map((event) => ({
+        id: event.id,
+        title: event.title ?? "",
+        location: event.venueName ?? null,
+        date: event.startsAt ? new Date(event.startsAt).toISOString() : null,
+        eventFlyer: event.eventFlyer,
+      })),
     });
   } catch (error) {
-    console.error("Error fetching user events:", error);
-    return new Response("Internal server error", { status: 500 });
+    console.error("Error fetching organizer events:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

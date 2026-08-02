@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 
 import { currencyOf, DEFAULT_CURRENCY } from "@/lib/currency";
 

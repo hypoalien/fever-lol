@@ -190,7 +190,7 @@ export function EventVenueSelection({ form }: { form: any }) {
     fetchVenues();
     // Check if there's a venue in form values and it has required fields
     const formVenue = form.getValues("venue");
-    if (formVenue?._id || formVenue?.id) {
+    if (formVenue?.id || formVenue?.id) {
       setSelectedVenue(formVenue);
     }
   }, []);
@@ -231,7 +231,7 @@ export function EventVenueSelection({ form }: { form: any }) {
 
       // Only update form and UI after successful save
       handleSelectVenue({
-        id: newVenue._id.toString(), // Convert MongoDB _id to string
+        id: newVenue.id.toString(), // Convert MongoDB id to string
         venueName: newVenue.venueName,
         address: newVenue.address,
         city: newVenue.city,

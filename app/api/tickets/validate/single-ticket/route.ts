@@ -1,114 +1,49 @@
-// app/api/tickets/validate/route.ts
-import { auth } from "@/auth";
-import { db } from "@/lib/mongo";
+import { z } from "zod";
+
+import { invalidRequest } from "@/lib/api";
+import { checkInTicket } from "@/lib/data/tickets";
+import { requireUser } from "@/lib/session";
+
+const BodySchema = z.object({ ticketId: z.string().trim().min(1).max(200) });
 
 export async function POST(req: Request) {
+  const session = await requireUser();
+  if (!session.ok) return session.response;
+
+  const parsed = BodySchema.safeParse(await req.json());
+  if (!parsed.success) return invalidRequest(parsed.error);
+
   try {
-    // Verify authentication
-    const session = await auth();
-    if (!session) {
-      return new Response("Unauthorized", { status: 403 });
-    }
+    const result = await checkInTicket(parsed.data.ticketId, session.user.id);
 
-    const { ticketId } = await req.json();
-    if (!ticketId) {
-      return new Response(
-        JSON.stringify({
+    switch (result.outcome) {
+      case "not-found":
+        return Response.json(
+          { success: false, message: "Ticket not found" },
+          { status: 404 }
+        );
+      case "forbidden":
+        // Deliberately the same message as not-found, so scanning cannot be
+        // used to probe which codes exist on other organizers' events.
+        return Response.json(
+          { success: false, message: "Ticket not found" },
+          { status: 404 }
+        );
+      case "already-used":
+        return Response.json({
           success: false,
-          message: "Ticket ID is required",
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+          message: "This ticket has already been used",
+          ticket: result.ticket,
+        });
+      case "checked-in":
+        return Response.json({
+          success: true,
+          message: "Ticket validated successfully",
+          ticket: result.ticket,
+        });
     }
-
-    const client = await db;
-    const ticketsCollection = client.db().collection("tickets");
-
-    // Find ticket by qrCode
-    const ticket = await ticketsCollection.findOne({ qrCode: ticketId });
-
-    if (!ticket) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "Ticket not found",
-        }),
-        {
-          status: 404,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Check if ticket has been used
-    if (ticket.checkedInTime) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          ticket: {
-            ...ticket,
-            validation: {
-              isValid: false,
-              validatedAt: ticket.checkedInTime,
-              message: "Ticket has already been used",
-            },
-          },
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Update ticket with check-in information
-    const updateResult = await ticketsCollection.updateOne(
-      { qrCode: ticketId },
-      {
-        $set: {
-          status: "used",
-          checkedInTime: new Date().toISOString(),
-          checkedInBy: session.user?.id || "unknown",
-        },
-      }
-    );
-
-    const updatedTicket = {
-      ...ticket,
-      checkedInTime: new Date().toISOString(),
-      validation: {
-        isValid: true,
-        validatedAt: new Date().toISOString(),
-        message: "Ticket validated successfully",
-        updateStatus: updateResult.modifiedCount === 1 ? "success" : "failed",
-      },
-    };
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        ticket: updatedTicket,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
   } catch (error) {
     console.error("Error validating ticket:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: "Internal server error",
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

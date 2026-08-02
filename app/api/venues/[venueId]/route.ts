@@ -1,76 +1,51 @@
-import { auth } from "@/auth";
-import { db } from "@/lib/mongo";
-import { ObjectId } from "mongodb";
+import { invalidRequest } from "@/lib/api";
+import {
+  VenueInputSchema,
+  deleteOwnedVenue,
+  updateOwnedVenue,
+} from "@/lib/data/venues";
+import { requireUser } from "@/lib/session";
 
-export async function PUT(req: Request, props: { params: Promise<{ venueId: string }> }) {
-  const params = await props.params;
+export async function PUT(
+  req: Request,
+  props: { params: Promise<{ venueId: string }> }
+) {
+  const session = await requireUser();
+  if (!session.ok) return session.response;
+
+  const { venueId } = await props.params;
+  const parsed = VenueInputSchema.safeParse(await req.json());
+  if (!parsed.success) return invalidRequest(parsed.error, "Invalid venue");
+
   try {
-    const session = await auth();
-    if (!session) {
-      return new Response("Unauthorized", { status: 403 });
-    }
-
-    const userId = session.user?.id;
-    const { venueId } = params;
-    const body = await req.json();
-
-    const client = await db;
-    const collection = client.db().collection("venues");
-
-    const venue = await collection.findOne({
-      _id: new ObjectId(venueId),
-      userId: userId,
-    });
-
+    const venue = await updateOwnedVenue(venueId, session.user.id, parsed.data);
     if (!venue) {
-      return new Response("Venue not found", { status: 404 });
+      return Response.json({ error: "Venue not found" }, { status: 404 });
     }
-
-    const updatedVenue = {
-      ...body,
-      updatedAt: new Date(),
-    };
-
-    await collection.updateOne(
-      { _id: new ObjectId(venueId) },
-      { $set: updatedVenue }
-    );
-
-    const result = await collection.findOne({ _id: new ObjectId(venueId) });
-    return new Response(JSON.stringify(result), { status: 200 });
+    return Response.json(venue);
   } catch (error) {
     console.error("Error updating venue:", error);
-    return new Response("Internal server error", { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request, props: { params: Promise<{ venueId: string }> }) {
-  const params = await props.params;
+export async function DELETE(
+  _req: Request,
+  props: { params: Promise<{ venueId: string }> }
+) {
+  const session = await requireUser();
+  if (!session.ok) return session.response;
+
+  const { venueId } = await props.params;
+
   try {
-    const session = await auth();
-    if (!session) {
-      return new Response("Unauthorized", { status: 403 });
+    const deleted = await deleteOwnedVenue(venueId, session.user.id);
+    if (!deleted) {
+      return Response.json({ error: "Venue not found" }, { status: 404 });
     }
-
-    const userId = session.user?.id;
-    const { venueId } = params;
-
-    const client = await db;
-    const collection = client.db().collection("venues");
-
-    const venue = await collection.findOne({
-      _id: new ObjectId(venueId),
-      userId: userId,
-    });
-
-    if (!venue) {
-      return new Response("Venue not found", { status: 404 });
-    }
-
-    await collection.deleteOne({ _id: new ObjectId(venueId) });
     return new Response(null, { status: 204 });
   } catch (error) {
     console.error("Error deleting venue:", error);
-    return new Response("Internal server error", { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
