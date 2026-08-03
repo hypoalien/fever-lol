@@ -11,7 +11,10 @@ import {
   Bell,
   MapPin,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+import { useSession } from "@/lib/auth-client";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -82,15 +85,19 @@ const navigationData = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      window.location.href = "/login";
-    },
-  });
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
 
-  if (status === "loading") {
-    return <div>Loading...</div>; // Add your loading component
+  // Better Auth has no `required` option, so the redirect is explicit. It runs
+  // in an effect rather than during render so it cannot fire mid-commit.
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.replace("/login");
+    }
+  }, [isPending, session, router]);
+
+  if (isPending || !session) {
+    return <div>Loading...</div>;
   }
   return (
     <Sidebar collapsible="icon" {...props}>

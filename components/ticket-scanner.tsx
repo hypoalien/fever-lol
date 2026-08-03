@@ -27,7 +27,7 @@ interface Validation {
 }
 
 interface Ticket {
-  _id: string;
+  id: string;
   orderId: string;
   eventId: string;
   ticketType: string;
@@ -185,7 +185,7 @@ export function TicketScanner({ isOpen, onClose }: TicketScannerProps) {
                 <div className="space-y-4">
                   {tickets.map((ticket) => (
                     <div
-                      key={ticket._id}
+                      key={ticket.id}
                       className={cn(
                         "rounded-lg border p-4 transition-colors text-black",
                         ticket.validation.isValid

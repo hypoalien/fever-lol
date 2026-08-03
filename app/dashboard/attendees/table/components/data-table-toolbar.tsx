@@ -18,7 +18,7 @@ interface DataTableToolbarProps<TData> {
 }
 
 interface Event {
-  _id: string;
+  id: string;
   eventName: string;
 }
 export function DataTableToolbar<TData>({
@@ -46,7 +46,7 @@ export function DataTableToolbar<TData>({
 
   const options = events.map((event) => ({
     label: event.eventName,
-    value: event._id,
+    value: event.id,
     // label: "",
     // value: "  ",
   }));

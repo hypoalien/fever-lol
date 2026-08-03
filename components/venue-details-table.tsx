@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Building2, Search } from "lucide-react";
 export interface Venue {
-  _id: string;
+  id: string;
   venueName: string;
   address: string;
   city: string;

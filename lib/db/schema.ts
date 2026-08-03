@@ -98,8 +98,9 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
-    emailVerified: timestamp("email_verified", { withTimezone: true }),
-    name: text("name"),
+    /** Better Auth models verification as a flag, not a timestamp. */
+    emailVerified: boolean("email_verified").notNull().default(false),
+    name: text("name").notNull().default(""),
     firstName: text("first_name"),
     lastName: text("last_name"),
     image: text("image"),
@@ -126,6 +127,98 @@ export const users = pgTable(
     uniqueIndex("users_org_url_lower_idx")
       .on(sql`lower(${table.orgUrl})`)
       .where(sql`${table.orgUrl} is not null`),
+  ]
+);
+
+/**
+ * Better Auth's tables. Names and columns are dictated by its Drizzle adapter,
+ * so the shape here is not free — `sessions`, `accounts` and `verifications`
+ * are mapped explicitly in lib/auth.ts.
+ *
+ * `accounts` holds the OAuth linkage: one row per provider per user. This is
+ * what lets the existing Google sign-ins keep working after the import.
+ */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    token: text("token").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("sessions_token_idx").on(table.token),
+    index("sessions_user_id_idx").on(table.userId),
+    index("sessions_expires_at_idx").on(table.expiresAt),
+  ]
+);
+
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: text("id").primaryKey(),
+    /** The provider's own identifier for this user. */
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+    }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // One link per provider account, so a repeated OAuth callback cannot
+    // create a duplicate linkage.
+    uniqueIndex("accounts_provider_account_idx").on(
+      table.providerId,
+      table.accountId
+    ),
+    index("accounts_user_id_idx").on(table.userId),
+  ]
+);
+
+export const verifications = pgTable(
+  "verifications",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("verifications_identifier_idx").on(table.identifier),
+    index("verifications_expires_at_idx").on(table.expiresAt),
   ]
 );
 
@@ -606,7 +699,17 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   events: many(events),
   venues: many(venues),
   orders: many(orders),
+  sessions: many(sessions),
+  accounts: many(accounts),
   paymentConfig: one(paymentConfigs),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
 }));
 
 export const venuesRelations = relations(venues, ({ one, many }) => ({
@@ -708,6 +811,10 @@ export const ticketsRelations = relations(tickets, ({ one }) => ({
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+export type Account = typeof accounts.$inferSelect;
+export type NewAccount = typeof accounts.$inferInsert;
 export type Venue = typeof venues.$inferSelect;
 export type NewVenue = typeof venues.$inferInsert;
 export type Event = typeof events.$inferSelect;

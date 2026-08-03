@@ -1,7 +1,9 @@
 "use client";
 
 import { BadgeCheck, ChevronsUpDown, LogOut, Settings } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
+
+import { signOut } from "@/lib/auth-client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -30,9 +32,11 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const router = useRouter();
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/login" });
+    await signOut();
+    router.push("/login");
   };
 
   return (

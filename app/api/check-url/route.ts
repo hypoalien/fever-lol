@@ -1,45 +1,26 @@
-import { auth } from "@/auth";
-import { db } from "@/lib/mongo";
+import { isOrgUrlAvailable } from "@/lib/data/users";
+import { requireUser } from "@/lib/session";
 
 export async function GET(req: Request) {
+  const session = await requireUser();
+  if (!session.ok) return session.response;
+
+  const orgUrl = new URL(req.url).searchParams.get("orgUrl");
+  if (!orgUrl) {
+    return Response.json(
+      { error: "An organization URL is required" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const session = await auth();
-    if (!session) {
-      return new Response("Unauthorized", { status: 403 });
-    }
-
-    const url = new URL(req.url);
-    const orgUrl = url.searchParams.get("orgUrl");
-
-    if (!orgUrl) {
-      return new Response("Organization URL is required", { status: 400 });
-    }
-
-    const client = await db;
-    const collection = client.db().collection("users");
-    const existingUrl = await collection.findOne({ orgUrl });
-
-    // If URL doesn't exist, it's available
-    if (!existingUrl) {
-      return new Response(JSON.stringify({ available: true }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-    }
-
-    // Check if the URL belongs to the current user
-    const isOwnUrl = existingUrl._id.toString() === session.user?.id;
-
-    return new Response(JSON.stringify({ available: isOwnUrl }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
+    // Available also covers "already yours", so re-saving your own profile
+    // does not report a clash.
+    return Response.json({
+      available: await isOrgUrlAvailable(orgUrl, session.user.id),
     });
   } catch (error) {
     console.error("Error checking URL availability:", error);
-    return new Response("Internal server error", { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

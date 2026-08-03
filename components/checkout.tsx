@@ -23,7 +23,7 @@ interface Event {
   eventName: string;
   eventFlyer: string;
   timings: Timing[];
-  _id: string;
+  id: string;
   currency: string;
 }
 

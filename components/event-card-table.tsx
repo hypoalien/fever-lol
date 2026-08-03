@@ -48,7 +48,7 @@ interface Timing {
 }
 
 interface Venue {
-  _id?: string;
+  id?: string;
   venueName: string;
   city: string;
   state: string;
@@ -60,7 +60,7 @@ interface TicketVariant {
 }
 
 interface Event {
-  _id: string;
+  id: string;
   eventName: string;
   eventFlyer: string;
   status: string;
@@ -90,8 +90,8 @@ const EventCardTable = ({ events }: { events: Event[] }) => {
     setIsCreating(true);
     try {
       const response = await axios.post("/api/events/create-event");
-      const { _id } = response.data;
-      router.push(`/dashboard/events/create-event?eventId=${_id}`);
+      const { id } = response.data;
+      router.push(`/dashboard/events/create-event?eventId=${id}`);
     } catch (error) {
       console.error("Error creating event:", error);
     } finally {
@@ -153,7 +153,7 @@ const EventCardTable = ({ events }: { events: Event[] }) => {
         ) : (
           <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
             {paginatedEvents.map((event) => (
-              <Card key={event._id} className="flex flex-col">
+              <Card key={event.id} className="flex flex-col">
                 <div className="p-4">
                   <div className="flex items-start gap-4">
                     <Image
@@ -192,7 +192,7 @@ const EventCardTable = ({ events }: { events: Event[] }) => {
                             <DropdownMenuItem
                               onClick={() =>
                                 router.push(
-                                  `/dashboard/events/create-event?eventId=${event._id}`
+                                  `/dashboard/events/create-event?eventId=${event.id}`
                                 )
                               }
                             >
@@ -200,14 +200,14 @@ const EventCardTable = ({ events }: { events: Event[] }) => {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                router.push(`/events/${event._id}/orders`)
+                                router.push(`/events/${event.id}/orders`)
                               }
                             >
                               View Orders
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
-                                router.push(`/events/${event._id}/attendees`)
+                                router.push(`/events/${event.id}/attendees`)
                               }
                             >
                               View Attendees

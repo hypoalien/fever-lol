@@ -18,10 +18,11 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "bun run scripts/seed.ts",
-    "test:integration": "vitest run --config vitest.integration.config.mts"
+    "test:integration": "./scripts/prepare-test-db.sh && vitest run --config vitest.integration.config.mts",
+    "users:import:dry": "tsx scripts/import-mongo-users.ts --dry-run",
+    "users:import": "tsx scripts/import-mongo-users.ts"
   },
   "dependencies": {
-    "@auth/mongodb-adapter": "^3.11.3",
     "@aws-sdk/client-s3": "^3.1101.0",
     "@aws-sdk/s3-request-presigner": "^3.1101.0",
     "@hookform/resolvers": "^3.10.0",
@@ -56,6 +57,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@types/qrcode": "^1.5.6",
     "@yudiel/react-qr-scanner": "^2.2.1",
+    "better-auth": "^1.6.25",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.0",
@@ -69,9 +71,7 @@
     "lucide-react": "^0.474.0",
     "mongodb": "^7.5.0",
     "next": "^16.2.12",
-    "next-auth": "5.0.0-beta.25",
     "next-themes": "^0.4.6",
-    "nodemailer": "^9.0.3",
     "nuqs": "^2.9.4",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
@@ -93,7 +93,6 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
-    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitest/coverage-v8": "^4.1.10",
@@ -102,10 +101,8 @@
     "eslint-config-next": "^16.2.12",
     "postcss": "^8.5.25",
     "tailwindcss": "3",
+    "tsx": "^4.23.1",
     "typescript": "6",
     "vitest": "^4.1.10"
-  },
-  "overrides": {
-    "@auth/core": "0.41.3"
   }
 }
