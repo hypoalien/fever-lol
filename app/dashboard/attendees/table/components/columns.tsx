@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2 } from "lucide-react";
 import axios from "axios";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const columns: ColumnDef<AttendeeInfo>[] = [
   {
@@ -140,6 +141,10 @@ export const columns: ColumnDef<AttendeeInfo>[] = [
 
 const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
   const [isLoading, setIsLoading] = useState(false);
+  // Held locally rather than written onto row.original: mutating the table's
+  // data does not notify it, so the cell only re-rendered by luck of the
+  // loading flag changing in the same tick.
+  const [justCheckedIn, setJustCheckedIn] = useState(false);
 
   const handleCheckIn = async () => {
     setIsLoading(true);
@@ -147,15 +152,15 @@ const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
       const response = await axios.post("/api/tickets/validate/single-ticket", {
         ticketId: row.original.attendeeId,
       });
-
-      // Update the row data if check-in was successful
       if (response.data.success) {
-        row.original.checkedIn = true;
-        row.original.checkedInTime = new Date().toISOString();
+        setJustCheckedIn(true);
+        toast.success("Ticket checked in");
+      } else {
+        toast.error(response.data.message ?? "Could not check this ticket in");
       }
     } catch (error) {
       console.error("Check-in failed:", error);
-      // You might want to show an error toast/notification here
+      toast.error("Could not reach the server. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +168,7 @@ const CheckInCell = ({ row }: { row: Row<AttendeeInfo> }) => {
 
   return (
     <div className="w-[140px]">
-      {!row.getValue("checkedIn") && (
+      {!justCheckedIn && !row.getValue("checkedIn") && (
         <Button
           variant="ghost"
           className="hover:bg-primary/10 hover:text-primary px-2 h-8"

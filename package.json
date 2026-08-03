@@ -114,5 +114,12 @@
     "tsx": "^4.23.1",
     "typescript": "6",
     "vitest": "^4.1.10"
-  }
+  },
+  "license": "MIT",
+  "description": "Open-source event ticketing with zero platform fees.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hypoalien/fever-lol.git"
+  },
+  "homepage": "https://fever.lol"
 }

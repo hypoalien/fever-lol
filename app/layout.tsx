@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Archivo, Figtree } from "next/font/google";
 import "./globals.css";
-import SessionWrapper from "@/components/session-wrapper";
-import { NuqsAdapter } from "nuqs/adapters/next/app";
 import Script from "next/script";
 import { CurrencyProvider } from "@/contexts/currency-context";
 import { Toaster } from "@/components/ui/sonner";
 import { AnalyticsProvider } from "@/lib/analytics/client";
+import { buildStructuredData } from "@/components/marketing/structured-data";
+import { FAQS } from "@/lib/marketing-content";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
     siteName: "Fever.lol",
     images: [
       {
-        url: "/og-image.png", // Add your OG image path
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Fever.lol Platform Preview",
@@ -94,8 +94,8 @@ export const metadata: Metadata = {
     title: "Fever.lol - Open Source Event Management Platform",
     description:
       "Create, sell, and manage events with zero platform fees. The open-source event platform that puts you in control.",
-    images: ["/og-image.png"], // Add your Twitter image path
-    creator: "@fever_lol", // Add your Twitter handle
+    images: ["/og-image.png"],
+    creator: "@fever_lol",
   },
   robots: {
     index: true,
@@ -109,23 +109,24 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon-16x16.png",
-    apple: "/apple-touch-icon.png",
-    other: {
-      rel: "apple-touch-icon-precomposed",
-      url: "/apple-touch-icon-precomposed.png",
-    },
+    // These live under /favicon/; the previous paths 404'd.
+    icon: [
+      { url: "/favicon/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: "/favicon/favicon.ico",
+    apple: "/favicon/apple-touch-icon.png",
   },
-  manifest: "/site.webmanifest",
-  verification: {
-    google: "your-google-site-verification",
-    yandex: "your-yandex-verification",
-    yahoo: "your-yahoo-verification",
-    other: {
-      "facebook-domain-verification": "your-facebook-domain-verification",
-    },
-  },
+  manifest: "/favicon/site.webmanifest",
+  // Verification tags are only emitted once a real token is configured;
+  // placeholders were being rendered literally into the head.
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? {
+        verification: {
+          google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+        },
+      }
+    : {}),
   category: "Event Management",
   classification: "Event Platform",
   alternates: {
@@ -149,22 +150,27 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Emitted here rather than from the page: React 19 keeps an inline
+            script rendered in the body inside the RSC payload, so crawlers
+            reading raw HTML never see it. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: buildStructuredData(FAQS) }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${archivo.variable} font-sans antialiased`}
       >
         <AnalyticsProvider>
-          <SessionWrapper>
-            <CurrencyProvider>
-            <NuqsAdapter>
-              {children}{" "}
-              <Script
-                src="https://checkout.razorpay.com/v1/checkout.js"
-                strategy="lazyOnload"
-              />
-              <Toaster />
-            </NuqsAdapter>
+          <CurrencyProvider>
+            {children}
+            <Script
+              src="https://checkout.razorpay.com/v1/checkout.js"
+              strategy="lazyOnload"
+            />
+            <Toaster />
           </CurrencyProvider>
-          </SessionWrapper>
         </AnalyticsProvider>
       </body>
     </html>
