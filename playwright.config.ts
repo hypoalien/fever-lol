@@ -36,7 +36,23 @@ export default defineConfig({
   },
 
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // Signs in once; the dashboard suite reuses the saved session rather than
+    // authenticating per test, which trips Better Auth's rate limiter.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    {
+      name: "signed-out",
+      testIgnore: /dashboard\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "dashboard",
+      testMatch: /dashboard\.spec\.ts/,
+      dependencies: ["setup"],
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "tests/e2e/.auth/organizer.json",
+      },
+    },
   ],
 
   webServer: {

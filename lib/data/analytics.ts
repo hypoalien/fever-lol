@@ -1,7 +1,7 @@
-import { and, count, eq, gte, lt, ne, sql, sum } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, ne, sql, sum } from "drizzle-orm";
 
 import { db } from "@/lib/db";
-import { events, orderItems, orders } from "@/lib/db/schema";
+import { eventTimings, events, orderItems, orders, venues } from "@/lib/db/schema";
 
 /**
  * Dashboard figures.
@@ -183,6 +183,8 @@ export async function listOrders(organizerId: string, eventId?: string) {
       currency: orders.currency,
       subtotalMinor: orders.subtotalMinor,
       discountMinor: orders.discountMinor,
+      gatewayFeeMinor: orders.gatewayFeeMinor,
+      platformFeeMinor: orders.platformFeeMinor,
       totalMinor: orders.totalMinor,
       payoutMinor: orders.payoutMinor,
       paymentStatus: orders.paymentStatus,
@@ -190,10 +192,13 @@ export async function listOrders(organizerId: string, eventId?: string) {
       payoutStatus: orders.payoutStatus,
       eventId: orders.eventId,
       eventName: events.eventName,
+      venueName: venues.venueName,
+      venueAddress: venues.address,
       createdAt: orders.createdAt,
     })
     .from(orders)
     .innerJoin(events, eq(events.id, orders.eventId))
+    .leftJoin(venues, eq(venues.id, events.venueId))
     .where(
       eventId
         ? and(eq(orders.organizerId, organizerId), eq(orders.eventId, eventId))
@@ -201,5 +206,59 @@ export async function listOrders(organizerId: string, eventId?: string) {
     )
     .orderBy(sql`${orders.createdAt} desc`);
 
-  return rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() }));
+  if (rows.length === 0) return [];
+
+  // Line items and the event's first date, fetched once for the whole page
+  // rather than per row — the detail sheet renders them without another call.
+  const orderIds = rows.map((row) => row.id);
+  const eventIds = [...new Set(rows.map((row) => row.eventId))];
+
+  const [items, timings] = await Promise.all([
+    db
+      .select({
+        orderId: orderItems.orderId,
+        type: orderItems.type,
+        quantity: orderItems.quantity,
+        unitPriceMinor: orderItems.unitPriceMinor,
+      })
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds)),
+    db
+      .select({
+        eventId: eventTimings.eventId,
+        startsAt: sql<Date>`min(${eventTimings.startsAt})`,
+      })
+      .from(eventTimings)
+      .where(inArray(eventTimings.eventId, eventIds))
+      .groupBy(eventTimings.eventId),
+  ]);
+
+  const itemsByOrder = new Map<string, typeof items>();
+  for (const item of items) {
+    itemsByOrder.set(item.orderId, [
+      ...(itemsByOrder.get(item.orderId) ?? []),
+      item,
+    ]);
+  }
+  const startsByEvent = new Map(timings.map((t) => [t.eventId, t.startsAt]));
+
+  return rows.map((row) => {
+    const startsAt = startsByEvent.get(row.eventId);
+    return {
+      ...row,
+      createdAt: row.createdAt.toISOString(),
+      event: {
+        name: row.eventName,
+        venue: row.venueName,
+        address: row.venueAddress,
+        startsAt: startsAt ? new Date(startsAt).toISOString() : null,
+      },
+      items: (itemsByOrder.get(row.id) ?? []).map((item) => ({
+        type: item.type,
+        quantity: item.quantity,
+        unitPriceMinor: item.unitPriceMinor,
+        lineTotalMinor: item.unitPriceMinor * item.quantity,
+      })),
+    };
+  });
 }

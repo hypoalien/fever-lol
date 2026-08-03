@@ -56,11 +56,15 @@ export function DataTableRowActions<TData>({
     }
     setSheetOpen(true);
   };
-  function formatEventDateTime(dateString: string, timeString: string): string {
-    const eventDate = new Date(dateString);
-    const [hours, minutes] = timeString.split(":");
-    const eventDateTime = new Date(eventDate);
-    eventDateTime.setHours(parseInt(hours), parseInt(minutes));
+  const money = (minor: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: orderDetails?.currency ?? "USD",
+    }).format(minor / 100);
+
+  function formatEventDateTime(instant: string | null): string {
+    if (!instant) return "Date to be announced";
+    const eventDateTime = new Date(instant);
 
     const dateFormatter = new Intl.DateTimeFormat("en-US", {
       year: "numeric",
@@ -74,7 +78,7 @@ export function DataTableRowActions<TData>({
       hour12: true,
     });
 
-    return `${dateFormatter.format(eventDate)} - ${timeFormatter.format(
+    return `${dateFormatter.format(eventDateTime)} - ${timeFormatter.format(
       eventDateTime
     )}`;
   }
@@ -110,7 +114,7 @@ export function DataTableRowActions<TData>({
               <CardHeader className="flex flex-row items-start bg-muted/50">
                 <div className="grid gap-0.5">
                   <CardTitle className="group flex items-center gap-2 text-lg">
-                    Order {orderDetails.orderId}
+                    Order {orderDetails.orderNumber}
                     <Button
                       size="icon"
                       variant="outline"
@@ -122,10 +126,7 @@ export function DataTableRowActions<TData>({
                   </CardTitle>
                   <CardDescription>
                     Date:{" "}
-                    {formatEventDateTime(
-                      orderDetails.event.date,
-                      orderDetails.event.startTime
-                    )}
+                    {formatEventDateTime(orderDetails.event.startsAt)}
                   </CardDescription>
                 </div>
                 <div className="ml-auto flex items-center gap-1">
@@ -175,10 +176,7 @@ export function DataTableRowActions<TData>({
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Date:</span>
                       <span>
-                        {formatEventDateTime(
-                          orderDetails.event.date,
-                          orderDetails.event.startTime
-                        )}
+                        {formatEventDateTime(orderDetails.event.startsAt)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -195,7 +193,7 @@ export function DataTableRowActions<TData>({
                   <Separator className="my-2" />
                   <div className="font-semibold">Ticket Information</div>
                   <ul className="grid gap-3">
-                    {orderDetails.ticketDetails.map((ticket, index) => (
+                    {orderDetails.items.map((ticket, index) => (
                       <li
                         className="flex items-center justify-between"
                         key={index}
@@ -203,14 +201,14 @@ export function DataTableRowActions<TData>({
                         <span className="text-muted-foreground">
                           {ticket.type} x <span>{ticket.quantity}</span>
                         </span>
-                        <span>${ticket.price * ticket.quantity}</span>
+                        <span>{money(ticket.lineTotalMinor)}</span>
                       </li>
                     ))}
                   </ul>
 
                   <div className="flex justify-center mt-4">
                     <QRCodeSVG
-                      value={orderDetails.orderId}
+                      value={orderDetails.orderNumber}
                       size={150}
                       level="H"
                       includeMargin={true}
@@ -220,14 +218,14 @@ export function DataTableRowActions<TData>({
                   <div className="grid gap-3">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Subtotal</span>
-                      <span>${orderDetails.subtotal}</span>
+                      <span>{money(orderDetails.subtotalMinor)}</span>
                     </div>
-                    {orderDetails.event.paymentGatewayFee === "user" ? (
+                    {orderDetails.gatewayFeeMinor > 0 ? (
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">
                           Payment Gateway fees
                         </span>
-                        <span>${orderDetails.paymentGatewayFee}</span>
+                        <span>{money(orderDetails.gatewayFeeMinor)}</span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
@@ -239,12 +237,12 @@ export function DataTableRowActions<TData>({
                         </dd>{" "}
                       </div>
                     )}
-                    {orderDetails.event.platformFee === "user" ? (
+                    {orderDetails.platformFeeMinor > 0 ? (
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">
                           Platform fees
                         </span>
-                        <span>${orderDetails.platformFee}</span>
+                        <span>{money(orderDetails.platformFeeMinor)}</span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
@@ -259,11 +257,11 @@ export function DataTableRowActions<TData>({
 
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Discounts</span>
-                      <span>${orderDetails.discounts}</span>
+                      <span>{money(orderDetails.discountMinor)}</span>
                     </div>
                     <div className="flex items-center justify-between font-semibold">
                       <span className="text-muted-foreground">Total</span>
-                      <span>${orderDetails.totalAmountPaid}</span>
+                      <span>{money(orderDetails.totalMinor)}</span>
                     </div>
                   </div>
                 </div>
@@ -291,7 +289,7 @@ export function DataTableRowActions<TData>({
                   <dl className="grid gap-3">
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Transaction ID</dt>
-                      <dd>{orderDetails.orderId}</dd>
+                      <dd>{orderDetails.orderNumber}</dd>
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">Status</dt>
@@ -316,42 +314,39 @@ export function DataTableRowActions<TData>({
                       </dd>
                     </div>
                     <div className="flex items-center justify-between">
-                      <dt className="text-muted-foreground">Subtotal</dt>
-                      <dd>${orderDetails.subtotal}</dd>
+                      <dt className="text-muted-foreground">Net of discount</dt>
+                      <dd>
+                        {money(
+                          orderDetails.subtotalMinor - orderDetails.discountMinor
+                        )}
+                      </dd>
                     </div>
-                    {orderDetails.event.paymentGatewayFee === "organizer" ? (
-                      <div className="flex items-center justify-between">
-                        <dt className="text-muted-foreground">
-                          Payment gateway fees
-                        </dt>
-                        <dd>-${orderDetails.paymentGatewayFee}</dd>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <dt className="text-muted-foreground">
-                          Payment gateway fees
-                        </dt>
-                        <dd>
-                          <Badge variant="secondary">Paid by user</Badge>
-                        </dd>
-                      </div>
-                    )}
-                    {orderDetails.event.platformFee === "organizer" ? (
-                      <div className="flex items-center justify-between">
-                        <dt className="text-muted-foreground">Platform fees</dt>
-                        <dd>-${orderDetails.platformFee}</dd>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <dt className="text-muted-foreground">Platform fees</dt>
-                        <dd>
-                          <Badge variant="secondary">Paid by user</Badge>
-                        </dd>{" "}
-                      </div>
-                    )}
+                    {/* Whichever fees the organizer bears are the difference
+                        between the net and the payout, so it is derived rather
+                        than re-deciding the bearer here. */}
+                    {(() => {
+                      const net =
+                        orderDetails.subtotalMinor - orderDetails.discountMinor;
+                      const borne = net - orderDetails.payoutMinor;
+                      return borne > 0 ? (
+                        <div className="flex items-center justify-between">
+                          <dt className="text-muted-foreground">
+                            Fees you absorbed
+                          </dt>
+                          <dd>-{money(borne)}</dd>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <dt className="text-muted-foreground">Fees</dt>
+                          <dd>
+                            <Badge variant="secondary">Paid by buyer</Badge>
+                          </dd>
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center justify-between  font-semibold">
                       <dt className="text-muted-foreground ">Payout amount</dt>
-                      <dd>${orderDetails.payoutAmount}</dd>
+                      <dd>{money(orderDetails.payoutMinor)}</dd>
                     </div>
                   </dl>
                 </div>
@@ -377,7 +372,7 @@ export function DataTableRowActions<TData>({
                 <div className="text-xs text-muted-foreground">
                   Updated{" "}
                   <time dateTime="2024-12-18">
-                    {new Date(orderDetails.orderDate).toLocaleDateString()}
+                    {new Date(orderDetails.createdAt).toLocaleDateString()}
                   </time>
                 </div>
                 <Pagination className="ml-auto mr-0 w-auto">

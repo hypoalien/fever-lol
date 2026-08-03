@@ -294,3 +294,53 @@ export async function listPublicEventsForOrg(slug: string) {
 }
 
 export { lt };
+
+export interface PromoCodeSummary {
+  id: string;
+  code: string;
+  eventId: string;
+  eventName: string | null;
+  discountType: PromoCode["discountType"];
+  discountValue: number;
+  minOrderMinor: number;
+  timesRedeemed: number;
+  maxRedemptions: number | null;
+  active: boolean;
+  expiresAt: string | null;
+  currency: string;
+}
+
+/**
+ * Every promo code across an organizer's events.
+ *
+ * The discounts screen previously rendered a hardcoded array — it never
+ * fetched anything, so a code created on an event was invisible there.
+ */
+export async function listPromoCodes(
+  userId: string
+): Promise<PromoCodeSummary[]> {
+  const rows = await db
+    .select({
+      id: promoCodes.id,
+      code: promoCodes.code,
+      eventId: promoCodes.eventId,
+      eventName: events.eventName,
+      discountType: promoCodes.discountType,
+      discountValue: promoCodes.discountValue,
+      minOrderMinor: promoCodes.minOrderMinor,
+      timesRedeemed: promoCodes.timesRedeemed,
+      maxRedemptions: promoCodes.maxRedemptions,
+      active: promoCodes.active,
+      expiresAt: promoCodes.expiresAt,
+      currency: events.currency,
+    })
+    .from(promoCodes)
+    .innerJoin(events, eq(events.id, promoCodes.eventId))
+    .where(eq(events.userId, userId))
+    .orderBy(sql`${promoCodes.createdAt} desc`);
+
+  return rows.map((row) => ({
+    ...row,
+    expiresAt: row.expiresAt?.toISOString() ?? null,
+  }));
+}

@@ -78,6 +78,23 @@ export const auth = betterAuth({
     },
   },
 
+  rateLimit: {
+    enabled: true,
+    // Better Auth applies a stricter per-path rule to the sign-in endpoints —
+    // five magic links per window — which is right for production and is why
+    // this is left alone there. The end-to-end suite signs in more often than
+    // that from one address, so the rule is relaxed for it specifically.
+    ...(process.env.E2E === "1"
+      ? {
+          customRules: {
+            "/sign-in/magic-link": { window: 10, max: 1000 },
+            "/magic-link/verify": { window: 10, max: 1000 },
+            "/sign-out": { window: 10, max: 1000 },
+          },
+        }
+      : {}),
+  },
+
   session: {
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,

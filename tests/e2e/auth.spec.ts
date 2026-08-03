@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { clearMagicLink, readMagicLink, signIn } from "./helpers";
+import { requestMagicLink, signIn } from "./helpers";
 
 test.describe("authentication", () => {
   test("a magic link signs the organizer in", async ({ page }) => {
@@ -20,11 +20,7 @@ test.describe("authentication", () => {
   });
 
   test("a magic link cannot be redeemed twice", async ({ page }) => {
-    await clearMagicLink();
-    await page.request.post("/api/auth/sign-in/magic-link", {
-      data: { email: "organizer@fever.local", callbackURL: "/dashboard" },
-    });
-    const link = await readMagicLink();
+    const link = await requestMagicLink(page);
 
     await page.goto(link);
     await page.waitForURL(/\/dashboard|\/onboarding/);

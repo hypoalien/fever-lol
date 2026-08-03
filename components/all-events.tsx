@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,10 +87,10 @@ export default function EventsComponent() {
   const [events, setEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(2024, 0, 20),
-    to: addDays(new Date(2025, 0, 20), 20),
-  });
+  // No range by default. This was hardcoded to Jan 2024 - Feb 2025, which
+  // quietly hid every event outside that window — including all future ones,
+  // for anyone using this after early 2025.
+  const [date, setDate] = React.useState<DateRange | undefined>(undefined);
 
   const [selectedTab, setSelectedTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");

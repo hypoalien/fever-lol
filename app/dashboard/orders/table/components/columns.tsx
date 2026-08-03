@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { orderStatuses, paymentStatuses } from "../data/data";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
-import { OrderType } from "@/models/orders";
+import { type Order } from "@/models/orders";
 import { usePrice } from "@/hooks/use-price";
 const PriceCell = ({ value }: { value: number }) => {
   const { currency } = usePrice();
@@ -19,7 +19,7 @@ const PriceCell = ({ value }: { value: number }) => {
   );
 };
 
-export const columns: ColumnDef<OrderType>[] = [
+export const columns: ColumnDef<Order>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -46,26 +46,26 @@ export const columns: ColumnDef<OrderType>[] = [
     size: 40,
   },
   {
-    accessorKey: "orderId",
+    accessorKey: "orderNumber",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Order ID" />
     ),
     cell: ({ row }) => (
       <div className="w-[120px] font-medium text-foreground text-nowrap truncate">
-        {row.getValue("orderId")}
+        {row.getValue("orderNumber")}
       </div>
     ),
     enableSorting: true,
     enableHiding: false,
   },
   {
-    accessorKey: "orderDate",
+    accessorKey: "createdAt",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Order Date" />
     ),
     cell: ({ row }) => (
       <div className="w-[160px] text-muted-foreground">
-        {new Date(row.getValue("orderDate")).toLocaleString()}
+        {new Date(row.getValue("createdAt")).toLocaleString()}
       </div>
     ),
     enableSorting: true,
@@ -103,11 +103,11 @@ export const columns: ColumnDef<OrderType>[] = [
   },
 
   {
-    accessorKey: "totalAmountPaid",
+    accessorKey: "totalMinor",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Total Amount" />
     ),
-    cell: ({ row }) => <PriceCell value={row.getValue("totalAmountPaid")} />,
+    cell: ({ row }) => <PriceCell value={row.getValue("totalMinor")} />,
     enableSorting: true,
     enableHiding: false,
   },

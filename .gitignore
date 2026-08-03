@@ -49,3 +49,5 @@ playwright-report/
 # cloudflare / opennext build output
 .open-next/
 .wrangler/
+
+tests/e2e/.auth/

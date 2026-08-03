@@ -3,7 +3,7 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { usePrice } from "@/hooks/use-price";
 interface OverviewProps {
-  data: { name: string; total: number }[];
+  data: { name: string; totalMinor: number }[];
 }
 
 export function Overview({ data }: OverviewProps) {
@@ -26,7 +26,7 @@ export function Overview({ data }: OverviewProps) {
           axisLine={false}
           tickFormatter={(value) => `${formatPrice(value)}`}
         />
-        <Bar dataKey="total" fill="#adfa1d" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="totalMinor" fill="#adfa1d" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
