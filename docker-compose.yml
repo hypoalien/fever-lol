@@ -1,62 +1,66 @@
-# docker-compose.yml
-version: "3.8"
+# Local development stack.
+#
+# Only Postgres runs here by default — the app itself is expected to run on the
+# host via `bun run dev`, which gives you HMR. Bring the database up with:
+#
+#   docker compose up -d postgres
+#
+# The published port is 5433, not 5432, so this doesn't collide with any other
+# Postgres you already have running locally.
+#
+# To run the app in a container too (closer to production), use the `app`
+# profile: `docker compose --profile app up --build`.
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: fever-lol-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: fever
+      POSTGRES_PASSWORD: fever
+      POSTGRES_DB: fever_lol
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fever -d fever_lol"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
+    profiles: ["app"]
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - NEXTAUTH_URL=${NEXTAUTH_URL}
-        - MONGODB_URI=${MONGODB_URI}
-        - AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
-        - AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
-        - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-        - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-        - MONGODB_USER_PASSWORD=${MONGODB_USER_PASSWORD}
-        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-        - AWS_REGION=${AWS_REGION}
-        - AWS_BUCKET=${AWS_BUCKET}
-        - EMAIL_SERVER_PASSWORD=${EMAIL_SERVER_PASSWORD}
-        - AUTH_RESEND_KEY=${AUTH_RESEND_KEY}
-        - EMAIL_SERVER_USER=${EMAIL_SERVER_USER}
-        - EMAIL_SERVER_HOST=${EMAIL_SERVER_HOST}
-        - EMAIL_SERVER_PORT=${EMAIL_SERVER_PORT}
-        - EMAIL_FROM=${EMAIL_FROM}
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-      - MONGODB_URI=mongodb://mongodb:27017/fever-lol
-      - AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
-      - AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - MONGODB_USER_PASSWORD=${MONGODB_USER_PASSWORD}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_BUCKET=${AWS_BUCKET}
-      - EMAIL_SERVER_PASSWORD=${EMAIL_SERVER_PASSWORD}
-      - AUTH_RESEND_KEY=${AUTH_RESEND_KEY}
-      - EMAIL_SERVER_USER=${EMAIL_SERVER_USER}
-      - EMAIL_SERVER_HOST=${EMAIL_SERVER_HOST}
-      - EMAIL_SERVER_PORT=${EMAIL_SERVER_PORT}
-      - EMAIL_FROM=${EMAIL_FROM}
+      NODE_ENV: production
+      # Inside the compose network Postgres is reachable on its own port.
+      DATABASE_URL: postgres://fever:fever@postgres:5432/fever_lol
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_BUCKET: ${AWS_BUCKET}
+      EMAIL_SERVER_PASSWORD: ${EMAIL_SERVER_PASSWORD}
+      AUTH_RESEND_KEY: ${AUTH_RESEND_KEY}
+      EMAIL_SERVER_USER: ${EMAIL_SERVER_USER}
+      EMAIL_SERVER_HOST: ${EMAIL_SERVER_HOST}
+      EMAIL_SERVER_PORT: ${EMAIL_SERVER_PORT}
+      EMAIL_FROM: ${EMAIL_FROM}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
     depends_on:
-      - mongodb
-
-  mongodb:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_USER_PASSWORD}
-    volumes:
-      - mongodb_data:/data/db
+      postgres:
+        condition: service_healthy
 
 volumes:
-  mongodb_data:
+  postgres_data:

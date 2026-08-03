@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 
 export async function GET(req: Request) {
   try {

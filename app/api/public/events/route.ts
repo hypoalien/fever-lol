@@ -1,4 +1,4 @@
-// import { db } from "@/lib/db";
+// import { db } from "@/lib/mongo";
 
 // export async function POST(req: Request) {
 //   try {
@@ -48,7 +48,7 @@
 //     return new Response("Internal server error", { status: 500 });
 //   }
 // }
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 
 export async function POST(req: Request) {
   try {

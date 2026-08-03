@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import {
   GATEWAY_SETTLEMENT_CURRENCY,
   isExpired,

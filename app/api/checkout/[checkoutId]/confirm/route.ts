@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { ObjectId, type Db, type Document } from "mongodb";
 import { z } from "zod";
 
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import {
   isExpired,
   toGatewayAmountMinor,

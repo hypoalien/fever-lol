@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import {
   PricingError,
   resolveCart,

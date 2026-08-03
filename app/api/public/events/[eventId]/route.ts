@@ -1,6 +1,6 @@
 // app/api/public/events/[eventId]/route.ts
 
-import { db } from "@/lib/db";
+import { db } from "@/lib/mongo";
 import { ObjectId } from "mongodb";
 
 export async function GET(req: Request, props: { params: Promise<{ eventId: string }> }) {
