@@ -1,17 +1,25 @@
 // Flyers live in R2 behind whatever hostname the bucket is published on —
 // its r2.dev address or a custom domain — so the pattern is derived from the
 // same env var the upload route hands back rather than hardcoding a bucket.
-const flyerHost = process.env.R2_PUBLIC_URL
-  ? new URL(process.env.R2_PUBLIC_URL).hostname
-  : undefined;
+// Both buckets: production reads R2_PUBLIC_URL from wrangler vars, local dev
+// from .env pointing at the preview bucket. Allowing both means one build works
+// in either place.
+const flyerHosts = [
+  process.env.R2_PUBLIC_URL,
+  process.env.R2_PUBLIC_URL_PREVIEW,
+]
+  .filter(Boolean)
+  .map((value) => new URL(value).hostname);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
-      ...(flyerHost
-        ? [{ protocol: "https", hostname: flyerHost, pathname: "/flyer/**" }]
-        : []),
+      ...flyerHosts.map((hostname) => ({
+        protocol: "https",
+        hostname,
+        pathname: "/flyer/**",
+      })),
       {
         protocol: "https",
         hostname: "picsum.photos",
