@@ -14,6 +14,10 @@ env:
   # Never a real secret: CI runs against a throwaway Postgres in a container.
   DATABASE_URL: postgres://fever:fever@localhost:5432/fever_lol
   BETTER_AUTH_SECRET: ci-secret-not-used-outside-ci
+  # Gateway secrets are encrypted at rest, so the payment settings endpoints
+  # need a key to be set at all. Also throwaway: the only ciphertext it ever
+  # protects is the fake key the e2e suite stores and reads back.
+  ENCRYPTION_KEY: ci-encryption-key-not-used-outside-ci
 
 jobs:
   check:
