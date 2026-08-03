@@ -3,6 +3,8 @@ import { z } from "zod";
 import { invalidRequest } from "@/lib/api";
 import { checkInTicket } from "@/lib/data/tickets";
 import { requireUser } from "@/lib/session";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { trackServer } from "@/lib/analytics/server";
 
 const BodySchema = z.object({ ticketId: z.string().trim().min(1).max(200) });
 
@@ -15,6 +17,16 @@ export async function POST(req: Request) {
 
   try {
     const result = await checkInTicket(parsed.data.ticketId, session.user.id);
+
+    trackServer(ANALYTICS_EVENTS.ticketScanned, session.user.id, {
+      eventId: "ticket" in result ? result.ticket.id : "",
+      outcome:
+        result.outcome === "checked-in"
+          ? "admitted"
+          : result.outcome === "already-used"
+            ? "already_used"
+            : "not_found",
+    });
 
     switch (result.outcome) {
       case "not-found":
