@@ -41,7 +41,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "REPLACE_WITH_HYPERDRIVE_ID",
+      "id": "c31cfb1cce1d4a6fbfdeaac1071918a8",
       "localConnectionString": "postgres://fever:fever@localhost:5433/fever_lol"
     }
   ]
