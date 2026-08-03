@@ -2,11 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap");
-
-body {
-  font-family: "Figtree", sans-serif;
-}
+/* Figtree is loaded via next/font in app/layout.tsx and exposed as
+   --font-figtree, which tailwind.config.ts maps onto font-sans. */
 
 @layer utilities {
   .text-balance {

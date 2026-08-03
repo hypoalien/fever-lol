@@ -130,11 +130,15 @@ export function TicketScanner({ isOpen, onClose }: TicketScannerProps) {
                 <div className="w-fit h-fit ">
                   <Scanner
                     onScan={handleScan}
-                    onError={(error) => setError((error as Error).message)}
-                    // styles={{
-
+                    // The library reports IScannerError, not Error.
+                    onError={(scannerError) =>
+                      setError(
+                        scannerError instanceof Error
+                          ? scannerError.message
+                          : "Could not access the camera"
+                      )
+                    }
                     components={{
-                      audio: true,
                       torch: true,
                       tracker: () => {},
                     }}

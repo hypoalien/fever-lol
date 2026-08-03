@@ -16,10 +16,8 @@ import {
  * buyer sees is produced by the same code path that will later authorise the
  * charge. The response deliberately carries no gateway credentials.
  */
-export async function GET(
-  _req: Request,
-  { params }: { params: { checkoutId: string } }
-) {
+export async function GET(_req: Request, props: { params: Promise<{ checkoutId: string }> }) {
+  const params = await props.params;
   try {
     const { checkoutId } = params;
     if (!ObjectId.isValid(checkoutId)) {

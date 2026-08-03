@@ -38,11 +38,11 @@ const formSchema = z.object({
   eventDescription: z
     .string()
     .min(10, "Description must be at least 10 characters."),
-  eventFlyer: z.string({ required_error: "Event flyer is required" }),
+  eventFlyer: z.string({ error: "Event flyer is required" }),
   timings: z
     .array(
       z.object({
-        date: z.date({ required_error: "Start date is required." }),
+        date: z.date({ error: "Start date is required." }),
         startTime: z.string().min(1, "Start time is required"),
         endTime: z.string().min(1, "End time is required"),
       })
@@ -66,15 +66,15 @@ const formSchema = z.object({
           .min(6, "Description must be at least 6 characters."),
         quantity: z.string().optional(),
         remaining: z.string().optional(),
-        price: z.string({ required_error: "Ticket price is required" }),
+        price: z.string({ error: "Ticket price is required" }),
       })
     )
     .optional(),
   platformFee: z.string({
-    required_error: "Please select who pays the platform fee",
+    error: "Please select who pays the platform fee",
   }),
   paymentGatewayFee: z.string({
-    required_error: "Please select who pays the processing fee",
+    error: "Please select who pays the processing fee",
   }),
 
   venue: z

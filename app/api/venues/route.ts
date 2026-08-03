@@ -8,7 +8,7 @@ export async function GET() {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId || typeof userId !== "string") {
       return new Response("Invalid UserId", { status: 400 });
     }
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     const body = await req.json();
 
     const client = await db;

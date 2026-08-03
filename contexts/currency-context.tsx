@@ -2,6 +2,8 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
+import { currencyOf, DEFAULT_CURRENCY } from "@/lib/currency";
+
 type CurrencyContextType = {
   currency: string;
   setCurrency: (currency: string) => void;
@@ -13,15 +15,16 @@ const CurrencyContext = createContext<CurrencyContextType | undefined>(
 
 export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const sessionCurrency = currencyOf(session?.user);
   const [currency, setCurrency] = useState<string>(
-    (session?.user?.currency as string) || "USD"
+    sessionCurrency ?? DEFAULT_CURRENCY
   );
 
   useEffect(() => {
-    if (session?.user?.currency) {
-      setCurrency(session.user.currency as string);
+    if (sessionCurrency) {
+      setCurrency(sessionCurrency);
     }
-  }, [session]);
+  }, [sessionCurrency]);
 
   return (
     <CurrencyContext.Provider value={{ currency, setCurrency }}>

@@ -2,17 +2,15 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ObjectId } from "mongodb";
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { venueId: string } }
-) {
+export async function PUT(req: Request, props: { params: Promise<{ venueId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     const { venueId } = params;
     const body = await req.json();
 
@@ -46,17 +44,15 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { venueId: string } }
-) {
+export async function DELETE(req: Request, props: { params: Promise<{ venueId: string }> }) {
+  const params = await props.params;
   try {
     const session = await auth();
     if (!session) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     const { venueId } = params;
 
     const client = await db;

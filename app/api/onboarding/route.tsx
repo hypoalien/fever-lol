@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { currencyOf } from "@/lib/currency";
 import { db } from "@/lib/db";
 import { ObjectId } from "mongodb";
 
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId || typeof userId !== "string") {
       return new Response("Invalid UserId", { status: 400 });
     }
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     };
 
     // Only set currency if it's not already set in the session
-    if (!session.user.currency) {
+    if (!currencyOf(session.user)) {
       updateFields.currency = currency;
     }
 
@@ -62,7 +63,7 @@ export async function GET() {
       return new Response("Unauthorized", { status: 403 });
     }
 
-    const userId = session.user.id;
+    const userId = session.user?.id;
     if (!userId || typeof userId !== "string") {
       return new Response("Invalid UserId", { status: 400 });
     }

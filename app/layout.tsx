@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 import SessionWrapper from "@/components/session-wrapper";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -16,6 +17,16 @@ const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
   weight: "100 900",
+});
+
+// Was a Google Fonts @import inside globals.css, which render-blocks and — after
+// the Tailwind directives expand — violates the CSS rule that @import must come
+// first. next/font self-hosts it and inlines the font-face declarations.
+const figtree = Figtree({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-figtree",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -76,11 +87,6 @@ export const metadata: Metadata = {
     images: ["/og-image.png"], // Add your Twitter image path
     creator: "@fever_lol", // Add your Twitter handle
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
   robots: {
     index: true,
     follow: true,
@@ -120,6 +126,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Next moved viewport out of the metadata export; keeping it there is a no-op.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -128,7 +140,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} font-sans antialiased`}
       >
         <SessionWrapper>
           <CurrencyProvider>

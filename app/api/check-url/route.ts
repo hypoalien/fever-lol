@@ -30,7 +30,7 @@ export async function GET(req: Request) {
     }
 
     // Check if the URL belongs to the current user
-    const isOwnUrl = existingUrl._id.toString() === session.user.id;
+    const isOwnUrl = existingUrl._id.toString() === session.user?.id;
 
     return new Response(JSON.stringify({ available: isOwnUrl }), {
       status: 200,
