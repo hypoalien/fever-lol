@@ -1,0 +1,799 @@
+/*
+ * Landing page styles.
+ *
+ * Concept: the page is a roll of admission tickets, printed two-colour on
+ * newsprint. Everything structural comes from that — the perforated dividers
+ * between sections, the serial numbers on each section, the monospaced
+ * "printed" data. Tickets are the product, so the vocabulary is the subject's
+ * own rather than decoration laid on top.
+ *
+ * Scoped under .mkt so it cannot leak into the dark dashboard theme.
+ */
+
+.mkt {
+  /* Two-colour offset on newsprint. Lime is the existing brand colour,
+     repositioned as fluorescent ticket stock rather than a neon accent. */
+  --paper: #f1f2ed;
+  --paper-deep: #e7e9e1;
+  --ink: #12151a;
+  --ink-soft: #5a616b;
+  --blue: #1b3fe0;
+  --blue-deep: #1533b4;
+  --lime: #c8f751;
+  --rule: #d3d6cc;
+
+  --shell: min(1180px, 100% - 2.5rem);
+  --stub: 208px;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-figtree), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Newsprint tooth. Two offset dot grids, barely visible, so large flat areas
+   are not perfectly clean the way screen-native flat colour is. */
+.mkt::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(var(--rule) 0.5px, transparent 0.5px),
+    radial-gradient(var(--rule) 0.5px, transparent 0.5px);
+  background-size: 14px 14px;
+  background-position: 0 0, 7px 7px;
+}
+
+.mkt > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mkt-shell {
+  width: var(--shell);
+  margin-inline: auto;
+}
+
+/* ---------------------------------------------------------------- type -- */
+
+.mkt-display {
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-variation-settings: "wdth" 112;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 0.92;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.mkt-data {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Section marker. A roll of tickets is genuinely numbered, so the sequence
+   carries real meaning rather than being ornamental counting. */
+.mkt-serial {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.5rem;
+}
+
+.mkt-serial::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* -------------------------------------------------------- perforation -- */
+
+/*
+ * The divider between sections: a dashed tear line with real half-circle
+ * notches punched into both edges, so consecutive sections read as one
+ * continuous roll.
+ */
+.mkt-perf {
+  position: relative;
+  height: 0;
+  border-top: 2px dashed var(--rule);
+}
+
+.mkt-perf::before,
+.mkt-perf::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--paper-deep);
+  transform: translateY(-50%);
+  box-shadow: inset 0 1px 2px rgb(18 21 26 / 0.12);
+}
+
+.mkt-perf::before {
+  left: -12px;
+}
+.mkt-perf::after {
+  right: -12px;
+}
+
+.mkt-section {
+  padding-block: clamp(2.5rem, 5vw, 3.75rem);
+}
+
+/* --------------------------------------------------------------- nav --- */
+
+.mkt-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.mkt-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-block: 1rem;
+}
+
+.mkt-wordmark {
+  font-family: var(--font-archivo), sans-serif;
+  font-variation-settings: "wdth" 118;
+  font-weight: 700;
+  font-size: 1.125rem;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.mkt-nav-links {
+  display: none;
+  gap: 2rem;
+}
+
+@media (min-width: 900px) {
+  .mkt-nav-links {
+    display: flex;
+  }
+}
+
+.mkt-nav-link {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  transition: color 0.15s;
+}
+
+.mkt-nav-link:hover {
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------ buttons -- */
+
+.mkt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.625rem;
+  padding-inline: 1.125rem;
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+
+/* Offset shadow rather than a blur: printed matter, not glass. */
+.mkt-btn-primary {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.mkt-btn-primary:hover {
+  background: var(--blue-deep);
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.mkt-btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: 3px 3px 0 transparent;
+}
+
+.mkt-btn-ghost:hover {
+  background: var(--lime);
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.mkt-btn:focus-visible,
+.mkt-nav-link:focus-visible,
+.mkt-wordmark:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* -------------------------------------------------------------- hero --- */
+
+.mkt-hero {
+  padding-block: clamp(2rem, 4.5vw, 3.25rem) clamp(2.75rem, 5.5vw, 4rem);
+}
+
+.mkt-hero-grid {
+  display: grid;
+  gap: clamp(1.75rem, 3.5vw, 2.75rem);
+  align-items: center;
+}
+
+@media (min-width: 1000px) {
+  .mkt-hero-grid {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+}
+
+.mkt-hero h1 {
+  font-size: clamp(2.375rem, 6vw, 4.25rem);
+  margin: 1.5rem 0 0;
+}
+
+.mkt-hero h1 em {
+  font-style: normal;
+  /* Fluorescent stock behind the word, as if run through a second pass. */
+  background: var(--lime);
+  box-shadow:
+    0.15em 0 0 var(--lime),
+    -0.15em 0 0 var(--lime);
+}
+
+.mkt-lede {
+  margin: 1.25rem 0 0;
+  max-width: 46ch;
+  font-size: clamp(1.0625rem, 1.6vw, 1.1875rem);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.mkt-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+  margin-top: 1.625rem;
+}
+
+.mkt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: #fff;
+  color: var(--ink-soft);
+}
+
+.mkt-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent);
+}
+
+/* ------------------------------------------------------------ ticket --- */
+
+/*
+ * The signature: an actual admission ticket for the product itself. Rendered
+ * as a real stub — main body, punched perforation, tear-off end — so the
+ * thing being sold is the thing on the page.
+ */
+.mkt-ticket {
+  position: relative;
+  display: grid;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  box-shadow: 8px 8px 0 var(--ink);
+  transform: rotate(-1.2deg);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mkt-ticket:hover {
+  transform: rotate(-0.4deg) translateY(-4px);
+}
+
+@media (min-width: 620px) {
+  .mkt-ticket {
+    grid-template-columns: 1fr var(--stub);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-ticket,
+  .mkt-ticket:hover,
+  .mkt-btn:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+.mkt-ticket-body {
+  padding: 1.375rem 1.5rem;
+}
+
+.mkt-ticket-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  color: var(--ink-soft);
+}
+
+.mkt-ticket-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-variation-settings: "wdth" 105;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1;
+  margin: 0.875rem 0 0.375rem;
+}
+
+.mkt-ticket-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem 1rem;
+  margin-top: 1.125rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.mkt-ticket-meta dt {
+  color: var(--ink-soft);
+  margin-bottom: 0.3rem;
+}
+
+.mkt-ticket-meta dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+/* The tear-off stub, separated by a punched perforation. */
+.mkt-stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  padding: 1.375rem 1.125rem;
+  background: var(--lime);
+  border-top: 2px dashed var(--ink);
+}
+
+@media (min-width: 620px) {
+  .mkt-stub {
+    border-top: 0;
+    border-left: 2px dashed var(--ink);
+  }
+}
+
+/* Notches punched where the perforation meets the ticket edge. */
+.mkt-stub::before,
+.mkt-stub::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+}
+
+.mkt-stub::before {
+  top: -13px;
+  left: -13px;
+  clip-path: inset(50% 0 0 0);
+}
+
+.mkt-stub::after {
+  bottom: -13px;
+  left: -13px;
+  clip-path: inset(0 0 50% 0);
+}
+
+@media (max-width: 619px) {
+  .mkt-stub::before {
+    top: -13px;
+    left: -13px;
+    clip-path: inset(0 0 0 50%);
+  }
+  .mkt-stub::after {
+    top: -13px;
+    bottom: auto;
+    left: auto;
+    right: -13px;
+    clip-path: inset(0 50% 0 0);
+  }
+}
+
+.mkt-qr {
+  width: 78px;
+  height: 78px;
+  background: var(--ink);
+  padding: 7px;
+  border-radius: 2px;
+}
+
+.mkt-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mkt-admit {
+  font-family: var(--font-archivo), sans-serif;
+  font-variation-settings: "wdth" 120;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0.18em;
+  text-align: center;
+}
+
+/* -------------------------------------------------------------- fees --- */
+
+.mkt-fees {
+  display: grid;
+  gap: 0.875rem;
+}
+
+@media (min-width: 780px) {
+  .mkt-fees {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.mkt-fee-card {
+  padding: 1.25rem 1.375rem;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.mkt-fee-card[data-ours="true"] {
+  background: var(--lime);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+
+.mkt-fee-amount {
+  font-family: var(--font-archivo), sans-serif;
+  font-variation-settings: "wdth" 108;
+  font-weight: 700;
+  font-size: clamp(1.875rem, 4vw, 2.5rem);
+  line-height: 1;
+  margin: 0.625rem 0 0.3rem;
+}
+
+.mkt-fee-note {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------- steps -- */
+
+.mkt-steps {
+  display: grid;
+  gap: 0;
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: #fff;
+  overflow: hidden;
+}
+
+@media (min-width: 860px) {
+  .mkt-steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.mkt-step {
+  padding: 1.25rem 1.375rem;
+  border-bottom: 2px dashed var(--rule);
+}
+
+.mkt-step:last-child {
+  border-bottom: 0;
+}
+
+@media (min-width: 860px) {
+  .mkt-step {
+    border-bottom: 0;
+    border-right: 2px dashed var(--rule);
+  }
+  .mkt-step:last-child {
+    border-right: 0;
+  }
+}
+
+.mkt-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.mkt-step h3 {
+  font-size: 1.0625rem;
+  font-weight: 650;
+  margin: 0 0 0.5rem;
+}
+
+.mkt-step p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+/* ----------------------------------------------------------- features -- */
+
+.mkt-grid {
+  display: grid;
+  gap: 0.875rem;
+}
+
+@media (min-width: 700px) {
+  .mkt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .mkt-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.mkt-card {
+  padding: 1.25rem 1.375rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.mkt-card:hover {
+  border-color: var(--ink);
+}
+
+.mkt-card h3 {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: 0.875rem 0 0.5rem;
+}
+
+.mkt-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.mkt-card-icon {
+  color: var(--blue);
+}
+
+/* -------------------------------------------------------------- title -- */
+
+.mkt-title {
+  font-size: clamp(1.625rem, 3.6vw, 2.375rem);
+  margin: 0 0 0.75rem;
+  max-width: 20ch;
+}
+
+.mkt-sub {
+  color: var(--ink-soft);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  max-width: 56ch;
+  margin: 0 0 1.75rem;
+}
+
+/* --------------------------------------------------------- open source -- */
+
+.mkt-os {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 8px 8px 0 var(--lime);
+}
+
+@media (min-width: 900px) {
+  .mkt-os {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+}
+
+.mkt-os h2 {
+  font-size: clamp(1.75rem, 3.6vw, 2.5rem);
+  margin: 0.625rem 0 0.75rem;
+}
+
+.mkt-os p {
+  margin: 0;
+  color: #a9b0ba;
+  line-height: 1.6;
+  max-width: 48ch;
+}
+
+.mkt-os .mkt-btn-ghost {
+  color: var(--paper);
+  border-color: var(--paper);
+}
+
+.mkt-os .mkt-btn-ghost:hover {
+  background: var(--lime);
+  color: var(--ink);
+  border-color: var(--lime);
+  box-shadow: 2px 2px 0 var(--paper);
+}
+
+.mkt-terminal {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  line-height: 1.9;
+  padding: 1.25rem;
+  border: 1px solid #2a2f38;
+  border-radius: 3px;
+  background: #0b0d11;
+  overflow-x: auto;
+}
+
+.mkt-terminal .p {
+  color: var(--lime);
+}
+.mkt-terminal .c {
+  color: #7b828d;
+}
+
+/* --------------------------------------------------------------- faq --- */
+
+.mkt-faq {
+  border-top: 1px solid var(--rule);
+}
+
+.mkt-faq details {
+  border-bottom: 1px solid var(--rule);
+}
+
+.mkt-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.0625rem 0;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.0625rem;
+  list-style: none;
+}
+
+.mkt-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.mkt-faq summary::after {
+  content: "+";
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 1.25rem;
+  color: var(--blue);
+  flex-shrink: 0;
+}
+
+.mkt-faq details[open] summary::after {
+  content: "−";
+}
+
+.mkt-faq summary:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.mkt-faq p {
+  margin: 0 0 1.125rem;
+  color: var(--ink-soft);
+  line-height: 1.65;
+  max-width: 68ch;
+}
+
+/* ------------------------------------------------------------- footer -- */
+
+.mkt-footer {
+  border-top: 2px solid var(--ink);
+  padding-block: 2.25rem 1.75rem;
+}
+
+.mkt-footer-grid {
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 780px) {
+  .mkt-footer-grid {
+    grid-template-columns: 1.4fr repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mkt-footer h4 {
+  margin: 0 0 1rem;
+  color: var(--ink-soft);
+}
+
+.mkt-footer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.625rem;
+}
+
+.mkt-footer a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+
+.mkt-footer a:hover {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mkt-colophon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 2rem;
+  padding-top: 1.125rem;
+  border-top: 1px dashed var(--rule);
+  color: var(--ink-soft);
+}

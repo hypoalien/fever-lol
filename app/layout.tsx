@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Figtree } from "next/font/google";
+import { Archivo, Figtree } from "next/font/google";
 import "./globals.css";
 import SessionWrapper from "@/components/session-wrapper";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -23,6 +23,15 @@ const geistMono = localFont({
 // Was a Google Fonts @import inside globals.css, which render-blocks and — after
 // the Tailwind directives expand — violates the CSS rule that @import must come
 // first. next/font self-hosts it and inlines the font-face declarations.
+// Display face for the landing page. Variable width axis, so headings can be
+// set expanded the way printed ticket headers are.
+const archivo = Archivo({
+  subsets: ["latin"],
+  axes: ["wdth"],
+  variable: "--font-archivo",
+  display: "swap",
+});
+
 const figtree = Figtree({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
@@ -141,7 +150,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${archivo.variable} font-sans antialiased`}
       >
         <AnalyticsProvider>
           <SessionWrapper>
