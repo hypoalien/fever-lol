@@ -1,5 +1,6 @@
 import { listEventsForUser } from "@/lib/data/events";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 /**
  * The organizer's events.
@@ -14,7 +15,7 @@ export async function POST() {
   try {
     return Response.json(await listEventsForUser(session.user.id));
   } catch (error) {
-    console.error("Error fetching events:", error);
+    log.exception("Error fetching events", error, { route: "api/events" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

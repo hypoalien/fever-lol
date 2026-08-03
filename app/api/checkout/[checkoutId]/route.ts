@@ -7,6 +7,7 @@ import {
   toGatewayAmountMinor,
   totalsFor,
 } from "@/lib/data/checkout";
+import { log } from "@/lib/log";
 
 /**
  * Read a checkout back for the payment page.
@@ -73,7 +74,7 @@ export async function GET(
     if (error instanceof CheckoutError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Error fetching checkout:", error);
+    log.exception("Error fetching checkout", error, { route: "api/checkout/[checkoutId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

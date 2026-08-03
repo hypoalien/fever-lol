@@ -17,6 +17,7 @@ import {
 import { getRazorpayClient, verifyPaymentSignature } from "@/lib/razorpay";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { flushAnalytics, trackServer } from "@/lib/analytics/server";
+import { log } from "@/lib/log";
 
 /**
  * Confirm a paid checkout and issue tickets.
@@ -112,7 +113,7 @@ export async function POST(
     try {
       payment = await getRazorpayClient().payments.fetch(gatewayPaymentId);
     } catch (error) {
-      console.error("Could not fetch payment from Razorpay:", error);
+      log.exception("Could not fetch payment from Razorpay", error, { route: "api/checkout/[checkoutId]/confirm" });
       return Response.json(
         { error: "Could not verify payment with the gateway" },
         { status: 502 }
@@ -133,9 +134,7 @@ export async function POST(
       );
     }
     if (Number(payment.amount) !== expectedAmountMinor) {
-      console.error(
-        `Amount mismatch for ${gatewayPaymentId}: gateway ${payment.amount}, expected ${expectedAmountMinor}`
-      );
+      log.error(`Amount mismatch for ${gatewayPaymentId}: gateway ${payment.amount}, expected ${expectedAmountMinor}`, { route: "api/checkout/[checkoutId]/confirm" });
       return Response.json(
         { error: "Payment amount mismatch" },
         { status: 400 }
@@ -192,7 +191,7 @@ export async function POST(
     if (error instanceof CheckoutError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Error confirming checkout:", error);
+    log.exception("Error confirming checkout", error, { route: "api/checkout/[checkoutId]/confirm" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

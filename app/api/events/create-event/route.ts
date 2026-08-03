@@ -1,5 +1,6 @@
 import { createDraftEvent } from "@/lib/data/events";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 export async function POST() {
   const session = await requireUser();
@@ -12,7 +13,7 @@ export async function POST() {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error creating event:", error);
+    log.exception("Error creating event", error, { route: "api/events/create-event" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

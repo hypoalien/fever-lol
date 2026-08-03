@@ -5,6 +5,7 @@ import { CheckoutError, createCheckout } from "@/lib/data/checkout";
 import { PricingError } from "@/lib/pricing";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { trackServer } from "@/lib/analytics/server";
+import { log } from "@/lib/log";
 
 /**
  * Create a checkout.
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     if (error instanceof CheckoutError || error instanceof PricingError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Checkout creation error:", error);
+    log.exception("Checkout creation error", error, { route: "api/checkout" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/db";
 import { checkouts } from "@/lib/db/schema";
 import { getRazorpayClient, isRazorpayConfigured } from "@/lib/razorpay";
+import { log } from "@/lib/log";
 
 /**
  * Open a Razorpay order for an existing checkout.
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
     if (error instanceof CheckoutError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Razorpay order creation failed:", error);
+    log.exception("Razorpay order creation failed", error, { route: "api/checkout/razorpay/create-order" });
     return Response.json({ error: "Could not start payment" }, { status: 502 });
   }
 }

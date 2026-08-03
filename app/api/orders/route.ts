@@ -3,6 +3,7 @@ import { z } from "zod";
 import { invalidRequest } from "@/lib/api";
 import { listOrders } from "@/lib/data/analytics";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 const BodySchema = z.object({ eventId: z.string().uuid().optional() });
 
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     const orders = await listOrders(session.user.id, parsed.data.eventId);
     return Response.json({ orders });
   } catch (error) {
-    console.error("Error fetching orders:", error);
+    log.exception("Error fetching orders", error, { route: "api/orders" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

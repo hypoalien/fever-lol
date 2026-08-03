@@ -3,6 +3,7 @@ import { z } from "zod";
 import { invalidRequest } from "@/lib/api";
 import { listPublicEventsForOrg } from "@/lib/data/events";
 import { findUserByOrgUrl } from "@/lib/data/users";
+import { log } from "@/lib/log";
 
 /** Public organization page: the org's details plus its events on sale. */
 const BodySchema = z.object({ slug: z.string().trim().min(1).max(100) });
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       })),
     });
   } catch (error) {
-    console.error("Error fetching organizer events:", error);
+    log.exception("Error fetching organizer events", error, { route: "api/public/events" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

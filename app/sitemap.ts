@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { events, users } from "@/lib/db/schema";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { log } from "@/lib/log";
 
 export const revalidate = 3600;
 
@@ -53,7 +54,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ];
   } catch (error) {
     // A database hiccup must not take the sitemap down entirely.
-    console.error("Could not build the dynamic sitemap:", error);
+    log.exception("Could not build the dynamic sitemap", error, { route: "sitemap.ts" });
     return staticRoutes;
   }
 }

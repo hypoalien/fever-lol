@@ -6,6 +6,7 @@ import {
 import { deleteOwnedEvent, findOwnedEvent } from "@/lib/data/events";
 import { requireUser } from "@/lib/session";
 import { invalidRequest } from "@/lib/api";
+import { log } from "@/lib/log";
 
 export async function GET(
   _req: Request,
@@ -23,7 +24,7 @@ export async function GET(
     }
     return Response.json(event);
   } catch (error) {
-    console.error("Error fetching event:", error);
+    log.exception("Error fetching event", error, { route: "api/events/[eventId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -49,7 +50,7 @@ export async function POST(
     if (error instanceof EventWriteError) {
       return Response.json({ error: error.message }, { status: error.status });
     }
-    console.error("Error saving event:", error);
+    log.exception("Error saving event", error, { route: "api/events/[eventId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -81,7 +82,7 @@ export async function DELETE(
         { status: 409 }
       );
     }
-    console.error("Error deleting event:", error);
+    log.exception("Error deleting event", error, { route: "api/events/[eventId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

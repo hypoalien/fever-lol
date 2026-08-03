@@ -1,5 +1,7 @@
 import type { ZodError } from "zod";
 
+import { log } from "@/lib/log";
+
 /**
  * Shared response helpers for route handlers.
  *
@@ -43,7 +45,7 @@ export async function handle(
   try {
     return await operation();
   } catch (error) {
-    console.error(`${context}:`, error);
+    log.exception(context, error);
     return jsonError("Internal server error", 500);
   }
 }

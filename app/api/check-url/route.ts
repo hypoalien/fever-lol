@@ -1,5 +1,6 @@
 import { isOrgUrlAvailable } from "@/lib/data/users";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 export async function GET(req: Request) {
   const session = await requireUser();
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
       available: await isOrgUrlAvailable(orgUrl, session.user.id),
     });
   } catch (error) {
-    console.error("Error checking URL availability:", error);
+    log.exception("Error checking URL availability", error, { route: "api/check-url" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

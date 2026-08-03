@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { invalidRequest } from "@/lib/api";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 /**
  * Presigned URL for an event flyer upload.
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
       url: `https://${bucket}.s3.amazonaws.com/${key}`,
     });
   } catch (error) {
-    console.error("Could not sign flyer upload:", error);
+    log.exception("Could not sign flyer upload", error, { route: "api/events/get-flyer-upload-url" });
     return Response.json({ error: "Could not start upload" }, { status: 500 });
   }
 }

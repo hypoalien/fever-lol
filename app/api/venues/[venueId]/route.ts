@@ -5,6 +5,7 @@ import {
   updateOwnedVenue,
 } from "@/lib/data/venues";
 import { requireUser } from "@/lib/session";
+import { log } from "@/lib/log";
 
 export async function PUT(
   req: Request,
@@ -24,7 +25,7 @@ export async function PUT(
     }
     return Response.json(venue);
   } catch (error) {
-    console.error("Error updating venue:", error);
+    log.exception("Error updating venue", error, { route: "api/venues/[venueId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -45,7 +46,7 @@ export async function DELETE(
     }
     return new Response(null, { status: 204 });
   } catch (error) {
-    console.error("Error deleting venue:", error);
+    log.exception("Error deleting venue", error, { route: "api/venues/[venueId]" });
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
