@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { errorMessage } from "@/lib/errors";
 
 const accountFormSchema = z.object({
   firstName: z.string().optional().or(z.literal("")),
@@ -152,11 +153,10 @@ export function AccountForm() {
       if (response.status === 200) {
         toast.success("Profile updated successfully");
       }
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.message || "Failed to update profile";
-      setError(errorMessage);
-      toast.error(errorMessage);
+    } catch (error: unknown) {
+      const message = errorMessage(error, "Failed to update profile");
+      setError(message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

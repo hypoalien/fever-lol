@@ -30,6 +30,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { TrashIcon } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
+import type { EventForm } from "@/types/event-form";
 
 interface TimeSlot {
   id: string;
@@ -52,7 +53,7 @@ const generateTimeOptions = () => {
 };
 
 interface EventTimingsProps {
-  form: UseFormReturn<any>;
+  form: EventForm;
   fields: TimeSlot[];
   append: (value: Partial<TimeSlot>) => void;
   remove: (index: number) => void;

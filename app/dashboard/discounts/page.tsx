@@ -77,11 +77,13 @@ const promocodes = [
     status: "active",
   },
 ];
+type Promocode = (typeof promocodes)[number];
+
 export default function DiscountsPage() {
   const [selectedTab, setSelectedTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredPromocodes = promocodes.filter((promocode: any) => {
+  const filteredPromocodes = promocodes.filter((promocode: Promocode) => {
     const matchesTab =
       selectedTab === "all" || promocode.status === selectedTab;
 
@@ -134,7 +136,7 @@ export default function DiscountsPage() {
   );
 }
 
-const PromocodeCardTable = ({ promocodes }: { promocodes: any[] }) => {
+const PromocodeCardTable = ({ promocodes }: { promocodes: Promocode[] }) => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 

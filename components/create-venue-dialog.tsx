@@ -19,6 +19,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import axios from "axios";
+import type { VenueView } from "@/lib/data/venues";
 
 interface CreateVenueDto {
   venueName: string;
@@ -141,7 +142,7 @@ export function CreateVenueDialog({
 }: {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  onVenueCreated: (venue: any) => void;
+  onVenueCreated: (venue: VenueView) => void;
 }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateVenueDto>({
