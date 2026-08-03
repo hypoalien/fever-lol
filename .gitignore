@@ -51,3 +51,6 @@ playwright-report/
 .wrangler/
 
 tests/e2e/.auth/
+
+# Public build-time values only; see scripts/build-worker.mjs.
+!.env.production

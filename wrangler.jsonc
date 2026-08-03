@@ -19,7 +19,14 @@
   },
 
   "vars": {
-    "NEXT_PUBLIC_SITE_URL": "https://fever.lol",
+    "NEXT_PUBLIC_SITE_URL": "https://fever-lol.fever-lol.workers.dev",
+
+    // Better Auth needs its own origin in production to build callback and
+    // magic-link URLs. Without it, links point at whatever the request host
+    // happened to be. Change both of these together when a custom domain is
+    // attached.
+    "BETTER_AUTH_URL": "https://fever-lol.fever-lol.workers.dev",
+    "NEXTAUTH_URL": "https://fever-lol.fever-lol.workers.dev",
 
     // Flyer storage. Not secrets — the bucket is public by design, and the
     // account id is in every R2 URL. Only the access key pair is a secret, and
