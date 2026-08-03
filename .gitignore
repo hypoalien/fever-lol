@@ -45,3 +45,7 @@ users-export.csv
 .e2e/
 test-results/
 playwright-report/
+
+# cloudflare / opennext build output
+.open-next/
+.wrangler/

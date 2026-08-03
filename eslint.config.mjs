@@ -12,6 +12,12 @@ export default [
       "build/**",
       "coverage/**",
       "next-env.d.ts",
+      // Generated Worker bundle. Linting it exhausts the heap.
+      ".open-next/**",
+      ".wrangler/**",
+      ".e2e/**",
+      "playwright-report/**",
+      "test-results/**",
     ],
   },
   ...coreWebVitals,
