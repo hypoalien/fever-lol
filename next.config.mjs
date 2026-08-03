@@ -1,13 +1,17 @@
+// Flyers live in R2 behind whatever hostname the bucket is published on —
+// its r2.dev address or a custom domain — so the pattern is derived from the
+// same env var the upload route hands back rather than hardcoding a bucket.
+const flyerHost = process.env.R2_PUBLIC_URL
+  ? new URL(process.env.R2_PUBLIC_URL).hostname
+  : undefined;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "fever-lol.s3.amazonaws.com",
-        port: "",
-        pathname: "/flyer/**",
-      },
+      ...(flyerHost
+        ? [{ protocol: "https", hostname: flyerHost, pathname: "/flyer/**" }]
+        : []),
       {
         protocol: "https",
         hostname: "picsum.photos",

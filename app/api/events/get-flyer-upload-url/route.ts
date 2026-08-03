@@ -11,6 +11,10 @@ import { log } from "@/lib/log";
 /**
  * Presigned URL for an event flyer upload.
  *
+ * Points at Cloudflare R2 rather than Amazon S3 — R2 speaks the same API, so
+ * the presigning flow is unchanged and only the endpoint, region and
+ * credentials differ. This is the last AWS dependency gone.
+ *
  * The object key is generated here rather than taken from the request. The
  * previous version interpolated the client's `fileName` straight into the key,
  * so a caller could traverse the prefix or simply overwrite another
@@ -34,12 +38,14 @@ const BodySchema = z.object({
 
 let client: S3Client | null = null;
 
-function s3(): S3Client {
+function r2(): S3Client {
   client ??= new S3Client({
-    region: process.env.AWS_REGION,
+    // R2 has no regions; "auto" is what it expects.
+    region: "auto",
+    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+      accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
     },
   });
   return client;
@@ -49,8 +55,9 @@ export async function POST(req: Request) {
   const session = await requireUser();
   if (!session.ok) return session.response;
 
-  const bucket = process.env.AWS_BUCKET;
-  if (!bucket || !process.env.AWS_ACCESS_KEY_ID) {
+  const bucket = process.env.R2_BUCKET;
+  const publicBase = process.env.R2_PUBLIC_URL;
+  if (!bucket || !publicBase || !process.env.R2_ACCESS_KEY_ID) {
     return Response.json(
       { error: "File uploads are not configured" },
       { status: 503 }
@@ -66,7 +73,7 @@ export async function POST(req: Request) {
 
   try {
     const signedUrl = await getSignedUrl(
-      s3(),
+      r2(),
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -77,7 +84,9 @@ export async function POST(req: Request) {
 
     return Response.json({
       signedRequest: signedUrl,
-      url: `https://${bucket}.s3.amazonaws.com/${key}`,
+      // The bucket's public hostname — either its r2.dev address or a custom
+      // domain. Kept in an env var so the bucket can move without a deploy.
+      url: `${publicBase.replace(/\/$/, "")}/${key}`,
     });
   } catch (error) {
     log.exception("Could not sign flyer upload", error, { route: "api/events/get-flyer-upload-url" });
