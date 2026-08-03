@@ -40,3 +40,8 @@ next-env.d.ts
 # exported user data / PII — never commit
 users-export.csv
 *.pii.csv
+
+# playwright artifacts
+.e2e/
+test-results/
+playwright-report/
