@@ -116,3 +116,38 @@ export async function getMaskedPaymentConfig(userId: string) {
     stripeSecretKeySet: config.stripeSecretKeyEncrypted !== null,
   };
 }
+
+/**
+ * The Razorpay credentials a given organizer's tickets should be charged
+ * against.
+ *
+ * Organizers can store their own keys, and until now nothing read them —
+ * every checkout ran on the platform account regardless, which made the
+ * settings screen a form that saved into a void and the landing page's
+ * "buyers pay your account directly" untrue. Returns null when the organizer
+ * has not connected an account, and the caller falls back to the platform's.
+ *
+ * Only ever called on the server: it decrypts the stored secret.
+ */
+export async function getOrganizerRazorpayCredentials(
+  userId: string
+): Promise<{ keyId: string; keySecret: string } | null> {
+  const [config] = await db
+    .select()
+    .from(paymentConfigs)
+    .where(eq(paymentConfigs.userId, userId));
+
+  if (
+    !config ||
+    config.gateway !== "razorpay" ||
+    !config.razorpayKeyId ||
+    !config.razorpayKeySecretEncrypted
+  ) {
+    return null;
+  }
+
+  return {
+    keyId: config.razorpayKeyId,
+    keySecret: decrypt(config.razorpayKeySecretEncrypted),
+  };
+}

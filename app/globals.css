@@ -11,75 +11,150 @@
   }
 }
 
+/*
+ * The application palette, shared with the landing page.
+ *
+ * Same four inks: newsprint, ink, an offset blue for anything actionable, and
+ * a fluorescent lime. What changed is what each colour is *for*. Lime used to
+ * be the primary action colour, which is why every button in the app glowed
+ * and why it read as a different product from the marketing site. Blue carries
+ * actions now; lime is kept for the few places a highlighter would be used on
+ * paper — a live indicator, a positive delta, the selected row.
+ *
+ * Values are bare HSL triplets because Tailwind wraps them in hsl() itself.
+ * The previous dark block wrapped them a second time, producing hsl(hsl(...)),
+ * which is invalid — so dark mode never rendered at all. It was also the
+ * light theme, with :root holding the dark one.
+ */
 @layer base {
   :root {
-    --background: 0 0% 9%;
-    --foreground: 0 0% 98%;
+    /* Newsprint rather than white: a flat #fff behind paper-coloured cards
+       reads as a rendering fault rather than a choice. */
+    --background: 72 16% 94%;
+    --foreground: 218 18% 9%;
 
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 218 18% 9%;
 
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 18% 9%;
 
-    --primary: 79.13 99.04% 59.02%; /* Changed primary color */
-    --primary-foreground: 0 0% 9%;
+    /* Ink, not a blue. A saturated primary blue is the single most
+       template-looking choice available, and the landing page already
+       establishes ink-on-newsprint with lime as the one bright note. */
+    --primary: 218 20% 13%;
+    --primary-foreground: 72 16% 96%;
 
-    --secondary: 9 69% 56%;
-    --secondary-foreground: 0 0% 98%;
+    /* Lime is a fill, never text. At 64% lightness nothing legible sits on
+       white, so it always carries ink on top. */
+    --secondary: 77 91% 64%;
+    --secondary-foreground: 218 18% 9%;
 
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 63.9%;
+    --muted: 75 12% 90%;
+    --muted-foreground: 218 8% 42%;
 
-    --accent: 0 0% 98%;
-    --accent-foreground: 0 0% 9%;
+    --accent: 75 14% 88%;
+    --accent-foreground: 218 18% 9%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 4 74% 49%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: hsl(
-      79.13,
-      99.04%,
-      59.02%
-    ); /* Changed ring color to match primary */
+    --success: 145 55% 34%;
+    --success-foreground: 0 0% 100%;
 
-    --radius: 0.75rem;
+    --warning: 36 92% 44%;
+    --warning-foreground: 218 18% 9%;
+
+    --border: 79 11% 82%;
+    --input: 79 11% 82%;
+    --ring: 218 20% 13%;
+
+    /* Chart series, validated rather than chosen by eye.
+       scripts/validate_palette.js checks the lightness band, chroma floor,
+       adjacent-pair separation under deuteranopia/protanopia/tritanopia, and
+       contrast against the surface. The first attempt failed three of those —
+       ink read as grey, and a purple/blue pair was 2.4 apart to a deuteranope,
+       effectively identical. Order matters: adjacent slots are the ones
+       checked, so teal sits between lime and orange rather than beside
+       magenta. Lime is under 3:1 against paper, which is why every chart here
+       carries axis values and a tooltip rather than relying on colour. */
+    --chart-1: 222 67% 55%;
+    --chart-2: 78 72% 44%;
+    --chart-3: 171 68% 37%;
+    --chart-4: 21 76% 50%;
+    --chart-5: 309 52% 45%;
+
+    /* The sidebar stays an ink field. It keeps the dark-surface character of
+       the old theme without tinting the whole application. Also never
+       defined before, so the sidebar had no colours of its own. */
+    --sidebar-background: 218 18% 11%;
+    --sidebar-foreground: 72 12% 88%;
+    --sidebar-primary: 77 91% 64%;
+    --sidebar-primary-foreground: 218 18% 9%;
+    --sidebar-accent: 218 14% 18%;
+    --sidebar-accent-foreground: 72 16% 94%;
+    --sidebar-border: 218 12% 20%;
+    --sidebar-ring: 77 91% 64%;
+
+    /* Tighter than the previous 0.75rem. A ticket is a printed object with
+       barely-rounded corners, and the marketing page uses 2-3px throughout. */
+    --radius: 0.375rem;
   }
 
   .dark {
-    --background: hsl(0, 0%, 98%);
-    --foreground: hsl(0, 0%, 9%);
+    --background: 218 18% 8%;
+    --foreground: 72 14% 92%;
 
-    --card: hsl(0, 0%, 92%);
-    --card-foreground: hsl(0, 0%, 9%);
+    --card: 218 16% 12%;
+    --card-foreground: 72 14% 92%;
 
-    --popover: hsl(0, 0%, 92%);
-    --popover-foreground: hsl(0, 0%, 9%);
+    --popover: 218 16% 12%;
+    --popover-foreground: 72 14% 92%;
 
-    --primary: hsl(79.13, 99.04%, 59.02%); /* Changed primary color */
-    --primary-foreground: hsl(0, 0%, 9%);
+    /* Inverted rather than lifted: on a dark surface the ink primary becomes
+       paper, which keeps the same high-contrast, printed feel. */
+    --primary: 72 16% 94%;
+    --primary-foreground: 218 20% 10%;
 
-    --secondary: hsl(9, 69%, 56%);
-    --secondary-foreground: hsl(0, 0%, 98%);
+    --secondary: 77 85% 60%;
+    --secondary-foreground: 218 18% 8%;
 
-    --muted: hsl(0, 0%, 85%);
-    --muted-foreground: hsl(0, 0%, 40%);
+    --muted: 218 14% 17%;
+    --muted-foreground: 218 10% 62%;
 
-    --accent: hsl(0, 0%, 9%);
-    --accent-foreground: hsl(0, 0%, 98%);
+    --accent: 218 14% 20%;
+    --accent-foreground: 72 14% 92%;
 
-    --destructive: hsl(0, 84.2%, 60.2%);
-    --destructive-foreground: hsl(0, 0%, 98%);
+    --destructive: 4 78% 58%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: hsl(0, 0%, 80%);
-    --input: hsl(0, 0%, 80%);
-    --ring: hsl(
-      79.13,
-      99.04%,
-      59.02%
-    ); /* Changed ring color to match primary */
+    --success: 145 50% 48%;
+    --success-foreground: 218 18% 8%;
+
+    --warning: 36 90% 56%;
+    --warning-foreground: 218 18% 8%;
+
+    --border: 218 12% 20%;
+    --input: 218 12% 22%;
+    --ring: 77 85% 60%;
+
+    /* Separately validated against the dark surface, not flipped from light:
+       the dark lightness band is narrower (0.48-0.67) and the light steps sit
+       outside it. */
+    --chart-1: 223 70% 62%;
+    --chart-2: 67 100% 31%;
+    --chart-3: 184 100% 30%;
+    --chart-4: 23 75% 49%;
+    --chart-5: 313 48% 50%;
+
+    --sidebar-background: 218 20% 6%;
+    --sidebar-foreground: 72 12% 86%;
+    --sidebar-primary: 77 85% 60%;
+    --sidebar-primary-foreground: 218 18% 8%;
+    --sidebar-accent: 218 16% 14%;
+    --sidebar-accent-foreground: 72 14% 92%;
+    --sidebar-border: 218 12% 16%;
+    --sidebar-ring: 77 85% 60%;
   }
 }
 
@@ -89,5 +164,16 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* One focus treatment across the app, matching the landing page. The
+     default ring was tied to the old lime and was invisible on light
+     surfaces. */
+  /* A visible ring on everything focusable, so the keyboard path is never
+     invisible. Excluded: the command palette's search field, which fills the
+     top of its own dialog — a ring there frames the dialog's chrome rather
+     than marking a target, and the palette is already the focused surface. */
+  :focus-visible:not([cmdk-input]) {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }

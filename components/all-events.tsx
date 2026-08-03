@@ -1,537 +1,392 @@
 "use client";
-import * as React from "react";
+
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 import Image from "next/image";
+import axios from "axios";
+import { format } from "date-fns";
 import {
-  PlusCircle,
+  CalendarDays,
+  ExternalLink,
+  Loader2,
   MapPin,
   MoreHorizontal,
-  ChevronRight,
-  ChevronLeft,
-  Calendar as CalendarIcon,
-  ChevronsLeft,
-  ChevronsRight,
-  Loader2,
-  Tag,
   PencilIcon,
-  ExternalLinkIcon,
-  Users,
+  PlusCircle,
+  Send,
   ShoppingCart,
+  Tag,
+  Trash2,
+  Users,
 } from "lucide-react";
+import { toast } from "sonner";
 
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { DateRange } from "react-day-picker";
+import { EmptyState, LoadError } from "@/components/dashboard/page-shell";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Stagger, StaggerItem } from "@/components/ui/motion";
+import { CardGridSkeleton } from "@/components/ui/skeletons";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { errorMessage } from "@/lib/errors";
+import { formatMinor } from "@/lib/money";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import axios from "axios";
-import { Badge } from "@/components/ui/badge";
-import { usePrice } from "@/hooks/use-price";
-interface Timing {
-  date: string;
-  startTime: string;
-  endTime: string;
+  useDeleteEvent,
+  useEvents,
+  usePublishEvent,
+  type EventSummary,
+} from "@/lib/query/hooks";
+
+/**
+ * The events list.
+ *
+ * Every event carries its own currency, so prices are formatted with
+ * `formatMinor` rather than divided by a hundred and handed to the
+ * organizer-wide formatter — the old version printed ¥5,000 as ¥50.
+ *
+ * Publish and delete run through the shared mutations, so the card moves the
+ * moment it is clicked instead of after a refetch.
+ */
+
+type Tab = "all" | "draft" | "active" | "completed";
+
+const TABS: Array<{ value: Tab; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "active", label: "On sale" },
+  { value: "draft", label: "Drafts" },
+  { value: "completed", label: "Past" },
+];
+
+/** The soonest date the event runs, or null if no dates are set yet. */
+function firstDate(event: EventSummary): Date | null {
+  if (!event.timings.length) return null;
+  const times = event.timings.map((timing) => new Date(timing.date).getTime());
+  return new Date(Math.min(...times));
 }
 
-interface Venue {
-  id?: string;
-  venueName: string;
-  city: string;
-  state: string;
+function priceLabel(event: EventSummary): string {
+  if (!event.ticketVariants.length) return "No tickets yet";
+  const lowest = Math.min(
+    ...event.ticketVariants.map((variant) => variant.priceMinor)
+  );
+  return lowest === 0
+    ? "Free"
+    : `From ${formatMinor(lowest, event.currency)}`;
 }
 
-interface TicketVariant {
-  type: string;
-  price: string;
-}
-
-interface Event {
-  id: string;
-  eventName: string;
-  eventFlyer: string;
-  status: string;
-  venue: Venue | null;
-  timings: Timing[];
-  ticketVariants: TicketVariant[];
-}
 export default function EventsComponent() {
-  const [events, setEvents] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  // No range by default. This was hardcoded to Jan 2024 - Feb 2025, which
-  // quietly hid every event outside that window — including all future ones,
-  // for anyone using this after early 2025.
-  const [date, setDate] = React.useState<DateRange | undefined>(undefined);
+  const router = useRouter();
+  const { data, isPending, isError, refetch } = useEvents();
+  const publish = usePublishEvent();
+  const remove = useDeleteEvent();
 
-  const [selectedTab, setSelectedTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [tab, setTab] = useState<Tab>("all");
+  const [query, setQuery] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<EventSummary | null>(null);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await axios.post("/api/events");
-        setEvents(response.data.reverse()); // Reverse the order of events
-      } catch (error) {
-        console.error("Error fetching events:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const events = useMemo(() => data ?? [], [data]);
 
-    fetchEvents();
-  }, []);
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
 
-  useEffect(() => {
-    const filterEvents = () => {
-      interface Timing {
-        date: string;
-        startTime: string;
-        endTime: string;
-      }
+    return events.filter((event) => {
+      const matchesTab =
+        tab === "all" ||
+        (tab === "draft" ? !event.status || event.status === "draft" : event.status === tab);
 
-      interface Event {
-        id: string;
-        status?: string;
-        timings?: Timing[];
-        // Anything else the endpoint returns is not read here.
-        [key: string]: unknown;
-      }
+      if (!matchesTab) return false;
+      if (!needle) return true;
 
-      const filtered = events.filter((event: Event) => {
-        // Handle earliest date calculation with proper type safety
-        const earliestDate = event.timings?.length
-          ? new Date(
-              Math.min(
-                ...event.timings.map((t: Timing) => new Date(t.date).getTime())
-              )
-            )
-          : null;
+      // Search over what is actually on the card, not the whole JSON blob —
+      // stringifying the record meant a search for "draft" matched every
+      // event through its status field and a UUID fragment matched at random.
+      return [event.eventName, event.venue?.venueName, event.venue?.city]
+        .filter((field): field is string => Boolean(field))
+        .some((field) => field.toLowerCase().includes(needle));
+    });
+  }, [events, tab, query]);
 
-        // Convert event to string for search, with null check
-        const eventValuesString = JSON.stringify(event || {}).toLowerCase();
-        const matchesSearch = eventValuesString.includes(
-          (searchQuery || "").toLowerCase()
-        );
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      const { data: created } = await axios.post<{ id: string }>(
+        "/api/events/create-event"
+      );
+      router.push(`/dashboard/events/create-event?eventId=${created.id}`);
+    } catch (error) {
+      toast.error(errorMessage(error, "Could not start a new event"));
+      setCreating(false);
+    }
+  };
 
-        // Type-safe tab matching
-        const matchesTab = (() => {
-          switch (selectedTab) {
-            case "all":
-              return true;
-            case "draft":
-              return event.status === "draft" || !event.status;
-            case "active":
-              return event.status === "active";
-            case "completed":
-              return event.status === "completed";
-            default:
-              return false;
-          }
-        })();
+  const createButton = (
+    <Button onClick={handleCreate} size="sm" disabled={creating}>
+      {creating ? (
+        <Loader2 className="mr-2 size-4 animate-spin" />
+      ) : (
+        <PlusCircle className="mr-2 size-4" />
+      )}
+      New event
+    </Button>
+  );
 
-        // Safe date range comparison
-        const matchesDateRange =
-          date?.from && date?.to && earliestDate
-            ? earliestDate >= date.from && earliestDate <= date.to
-            : true;
-
-        return matchesTab && matchesSearch && matchesDateRange;
-      });
-
-      setFilteredEvents(filtered);
-    };
-
-    filterEvents();
-  }, [events, selectedTab, searchQuery, date]);
-
-  if (loading) {
+  if (isError) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        Loading...
-      </div>
+      <LoadError title="Could not load your events" onRetry={() => void refetch()} />
     );
   }
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto">
-      <Tabs defaultValue={selectedTab} onValueChange={setSelectedTab}>
-        <div className="flex flex-col space-y-4 lg:space-y-0 lg:flex-row lg:items-center lg:justify-between mb-6">
-          <TabsList className="flex-shrink-0 w-full lg:w-auto overflow-x-auto">
-            <TabsTrigger value="all">All Events</TabsTrigger>
-            <TabsTrigger value="active">Upcoming Events</TabsTrigger>
-            <TabsTrigger value="completed">Past Events</TabsTrigger>
-            <TabsTrigger value="draft">Draft</TabsTrigger>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+          <TabsList>
+            {TABS.map((entry) => (
+              <TabsTrigger key={entry.value} value={entry.value}>
+                {entry.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
+        </Tabs>
 
-          <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
-            <Input
-              placeholder="Search Events..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full lg:w-[250px]"
-            />
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full lg:w-[250px]">
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {date?.from ? (
-                    date.to ? (
-                      <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
-                      </>
-                    ) : (
-                      format(date.from, "LLL dd, y")
-                    )
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={date?.from}
-                  selected={date}
-                  onSelect={setDate}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+        <div className="flex flex-1 items-center gap-3 lg:justify-end">
+          <Input
+            placeholder="Search by name or venue"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="lg:w-64"
+          />
+          {createButton}
         </div>
+      </div>
 
-        <TabsContent value={selectedTab} className="mt-4">
-          <EventCardTable events={filteredEvents} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-const EventCardTable = ({ events }: { events: Event[] }) => {
-  const router = useRouter();
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const pageCount = Math.ceil(events.length / pageSize);
-  const paginatedEvents = events.slice(
-    pageIndex * pageSize,
-    pageIndex * pageSize + pageSize
-  );
-  const { formatPrice } = usePrice();
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 0 && newPage < pageCount) {
-      setPageIndex(newPage);
-    }
-  };
+      {isPending ? (
+        <CardGridSkeleton cards={4} />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={<CalendarDays className="size-5" />}
+          title={events.length === 0 ? "No events yet" : "Nothing matches that"}
+          description={
+            events.length === 0
+              ? "Start one, add your ticket types, and publish when you are ready."
+              : "Try a different search, or switch tabs."
+          }
+          action={events.length === 0 ? createButton : undefined}
+        />
+      ) : (
+        <Stagger className="grid gap-4 md:grid-cols-2">
+          {visible.map((event) => {
+            const date = firstDate(event);
+            const name = event.eventName ?? "Untitled event";
 
-  const [isCreating, setIsCreating] = useState(false);
-  const handleCreateEvent = async () => {
-    setIsCreating(true);
-    try {
-      const response = await axios.post("/api/events/create-event");
-      const { id } = response.data;
-      router.push(`/dashboard/events/create-event?eventId=${id}`);
-    } catch (error) {
-      console.error("Error creating event:", error);
-    } finally {
-      setIsCreating(false);
-    }
-  };
+            return (
+              <StaggerItem key={event.id}>
+                <Card className="flex h-full gap-4 p-4 transition-colors hover:border-foreground/20">
+                  <Image
+                    src={event.eventFlyer || "/placeholder.svg"}
+                    alt=""
+                    width={72}
+                    height={72}
+                    className="h-[72px] w-[72px] shrink-0 rounded-md object-cover"
+                    priority={false}
+                  />
 
-  const formatTicketsPrice = (ticketVariants: TicketVariant[]) => {
-    if (!ticketVariants?.length) return "Price not set";
-    const minPrice = Math.min(...ticketVariants.map((v) => Number(v.price)));
-    return `From ${formatPrice(minPrice)}`;
-  };
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/events/create-event?eventId=${event.id}`
+                            )
+                          }
+                          className="line-clamp-1 text-left font-medium hover:underline"
+                        >
+                          {name}
+                        </button>
+                        <Badge
+                          variant={
+                            event.status === "active" ? "default" : "outline"
+                          }
+                          className="mt-1.5"
+                        >
+                          {event.status === "active"
+                            ? "On sale"
+                            : event.status === "draft"
+                              ? "Draft"
+                              : event.status === "completed"
+                                ? "Past"
+                                : "Cancelled"}
+                        </Badge>
+                      </div>
 
-  return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <div>
-          <CardTitle>Events</CardTitle>
-          <CardDescription>
-            Manage your events and view their performance
-          </CardDescription>
-        </div>
-        <Button
-          onClick={handleCreateEvent}
-          size="sm"
-          className="gap-2"
-          disabled={isCreating}
-        >
-          {isCreating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <PlusCircle className="h-4 w-4" />
-          )}
-          Add Event
-        </Button>
-      </CardHeader>
-
-      <CardContent>
-        {paginatedEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 border border-dashed rounded-lg">
-            <h3 className="text-xl font-semibold">No events found</h3>
-            <p className="text-sm text-muted-foreground mt-2 text-center">
-              Create your first event to get started
-            </p>
-            <Button
-              onClick={handleCreateEvent}
-              size="sm"
-              className="gap-2 mt-4"
-              disabled={isCreating}
-            >
-              {isCreating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <PlusCircle className="h-4 w-4" />
-              )}
-              Add Event
-            </Button>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-            {paginatedEvents.map((event) => (
-              <Card key={event.id} className="flex flex-col">
-                <div className="p-4">
-                  <div className="flex items-start gap-4">
-                    <Image
-                      src={event.eventFlyer || "/placeholder.svg"}
-                      alt={event.eventName}
-                      width={80}
-                      height={80}
-                      className="object-cover rounded-lg"
-                      priority={false}
-                    />
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold line-clamp-1">
-                            {event.eventName}
-                          </h3>
-                          {event.status && (
-                            <Badge
-                              variant={
-                                event.status === "draft" ? "outline" : "default"
-                              }
-                              className="mt-1"
-                            >
-                              {event.status.toUpperCase()}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <Button
+                            aria-label={`Actions for ${name}`}
                             variant="ghost"
                             size="icon"
+                            className="-mr-1 -mt-1 size-8 shrink-0"
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
                             onClick={() =>
                               router.push(
                                 `/dashboard/events/create-event?eventId=${event.id}`
                               )
                             }
-                            className="h-8 w-8"
                           >
-                            <PencilIcon className="h-4 w-4" />
-                          </Button>
-
-                          {/* Open in New Tab Icon */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                            <PencilIcon className="mr-2 size-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          {event.status === "draft" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                publish.mutate(event.id, {
+                                  onSuccess: () =>
+                                    toast.success(`${name} is on sale`),
+                                  onError: (error) =>
+                                    toast.error(
+                                      errorMessage(
+                                        error,
+                                        "Could not publish this event"
+                                      )
+                                    ),
+                                })
+                              }
+                            >
+                              <Send className="mr-2 size-4" />
+                              Publish
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() =>
+                              router.push(`/dashboard/orders?eventId=${event.id}`)
+                            }
+                          >
+                            <ShoppingCart className="mr-2 size-4" />
+                            Orders
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              // Absolute: this was a relative path, so from the
+                              // events page it navigated to
+                              // /dashboard/events/dashboard/attendees.
+                              router.push(
+                                `/dashboard/attendees?eventId=${event.id}`
+                              )
+                            }
+                          >
+                            <Users className="mr-2 size-4" />
+                            Attendees
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() =>
                               window.open(`/events/${event.id}`, "_blank")
                             }
-                            className="h-8 w-8"
                           >
-                            <ExternalLinkIcon className="h-4 w-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(
-                                    `/dashboard/events/create-event?eventId=${event.id}`
-                                  )
-                                }
-                              >
-                                <PencilIcon className="h-4 w-4 mr-2" />
-                                Edit Event
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(
-                                    `/dashboard/orders?eventId=${event.id}`
-                                  )
-                                }
-                              >
-                                <ShoppingCart className="h-4 w-4 mr-2" />
-                                View Orders
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  router.push(
-                                    `dashboard/attendees?eventId=${event.id}`
-                                  )
-                                }
-                              >
-                                <Users className="h-4 w-4 mr-2" />
-                                View Attendees
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  window.open(`/events/${event.id}`, "_blank")
-                                }
-                              >
-                                <ExternalLinkIcon className="h-4 w-4 mr-2" />
-                                View Event
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
+                            <ExternalLink className="mr-2 size-4" />
+                            View public page
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setPendingDelete(event)}
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
 
-                      <div className="space-y-1">
-                        {event.timings?.[0] && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <CalendarIcon className="h-4 w-4" />
-                            <span>
-                              {format(
-                                new Date(event.timings[0].date),
-                                "MMM dd, yyyy"
-                              )}
-                            </span>
-                          </p>
-                        )}
-                        {event.venue && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-4 w-4" />
-                            <span className="line-clamp-1">
-                              {`${event.venue.venueName}, ${event.venue.city}`}
-                            </span>
-                          </p>
-                        )}
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Tag className="h-4 w-4" />
-                          {formatTicketsPrice(event.ticketVariants)}
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p className="flex items-center gap-1.5">
+                        <CalendarDays className="size-3.5 shrink-0" />
+                        {date ? format(date, "EEE d MMM yyyy") : "No date set"}
+                      </p>
+                      {event.venue && (
+                        <p className="flex items-center gap-1.5">
+                          <MapPin className="size-3.5 shrink-0" />
+                          <span className="line-clamp-1">
+                            {[event.venue.venueName, event.venue.city]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
                         </p>
-                      </div>
+                      )}
+                      <p className="flex items-center gap-1.5">
+                        <Tag className="size-3.5 shrink-0" />
+                        {priceLabel(event)}
+                      </p>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </CardContent>
+                </Card>
+              </StaggerItem>
+            );
+          })}
+        </Stagger>
+      )}
 
-      {paginatedEvents.length > 0 && (
-        <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6">
-          <div className="text-sm text-muted-foreground">
-            Showing {pageIndex * pageSize + 1}-
-            {Math.min((pageIndex + 1) * pageSize, events.length)} of{" "}
-            {events.length} events
-          </div>
-          <div className="flex items-center gap-4">
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => {
-                setPageSize(Number(value));
-                setPageIndex(0);
+      <Dialog
+        open={pendingDelete !== null}
+        onOpenChange={(next) => !next && setPendingDelete(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {pendingDelete?.eventName ?? "this event"}?
+            </DialogTitle>
+            <DialogDescription>
+              This cannot be undone. Events that already have orders cannot be
+              deleted — cancel them instead.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingDelete(null)}>
+              Keep it
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!pendingDelete) return;
+                const name = pendingDelete.eventName ?? "Event";
+                remove.mutate(pendingDelete.id, {
+                  onSuccess: () => toast.success(`Deleted ${name}`),
+                  onError: (error) =>
+                    toast.error(
+                      errorMessage(error, "Could not delete this event")
+                    ),
+                });
+                setPendingDelete(null);
               }}
             >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 20, 30, 40, 50].map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size} rows
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(0)}
-                disabled={pageIndex === 0}
-              >
-                <ChevronsLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(pageIndex - 1)}
-                disabled={pageIndex === 0}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm">
-                Page {pageIndex + 1} of {pageCount}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(pageIndex + 1)}
-                disabled={pageIndex >= pageCount - 1}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(pageCount - 1)}
-                disabled={pageIndex >= pageCount - 1}
-              >
-                <ChevronsRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardFooter>
-      )}
-    </Card>
+              Delete event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
-};
+}

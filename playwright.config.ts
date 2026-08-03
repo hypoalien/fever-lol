@@ -41,12 +41,12 @@ export default defineConfig({
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "signed-out",
-      testIgnore: /(dashboard|event-editor)\.spec\.ts/,
+      testIgnore: /(dashboard|dashboard-shots|event-editor)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
       name: "dashboard",
-      testMatch: /(dashboard|event-editor)\.spec\.ts/,
+      testMatch: /(dashboard|dashboard-shots|event-editor)\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],

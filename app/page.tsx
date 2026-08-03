@@ -146,7 +146,7 @@ export default function Page() {
       <header className="mkt-nav">
         <div className="mkt-shell mkt-nav-inner">
           <Link href="/" className="mkt-wordmark">
-            Fever<span style={{ color: "var(--blue)" }}>.</span>lol
+            Fever<span style={{ color: "var(--lime)" }}>.</span>lol
           </Link>
           <nav className="mkt-nav-links" aria-label="Main">
             <a className="mkt-nav-link" href="#pricing">
@@ -353,7 +353,7 @@ export default function Page() {
           <div className="mkt-footer-grid">
             <div>
               <p className="mkt-wordmark" style={{ display: "block" }}>
-                Fever<span style={{ color: "var(--blue)" }}>.</span>lol
+                Fever<span style={{ color: "var(--lime)" }}>.</span>lol
               </p>
               <p
                 className="mkt-fee-note"

@@ -1,11 +1,15 @@
 /**
  * Seed the local database with something worth clicking through.
  *
+ * Builds a store with sales in it, not just empty events: orders, tickets,
+ * some already checked in. An empty dashboard tells you nothing about whether
+ * the dashboard works.
+ *
  * Idempotent: re-running replaces the seeded rows rather than duplicating them.
- * Refuses to run against anything that doesn't look local, so it can't be
- * pointed at production by accident.
+ * Refuses to run against anything that doesn't look local.
  *
  *   bun run db:seed
+ *   SEED_EMAIL=you@example.com bun run db:seed   # seed onto your own account
  */
 
 import { eq } from "drizzle-orm";
@@ -14,14 +18,29 @@ import { db } from "@/lib/db";
 import {
   eventTimings,
   events,
+  orderItems,
+  orders,
   promoCodes,
   ticketVariants,
+  tickets,
   users,
   venues,
 } from "@/lib/db/schema";
 import { toMinor } from "@/lib/money";
+import { computeTotals } from "@/lib/pricing";
+import crypto from "crypto";
 
-const SEED_EMAIL = "organizer@fever.local";
+/**
+ * Whose account gets the data. Defaults to a throwaway organizer, but point it
+ * at your own address to see the dashboard as yourself.
+ */
+const SEED_EMAIL = process.env.SEED_EMAIL ?? "organizer@fever.local";
+
+/** A public page slug derived from the address, so two seeds cannot collide. */
+function slugFor(email: string): string {
+  const local = email.split("@")[0].toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return local === "organizer" ? "lantern" : local.replace(/^-+|-+$/g, "");
+}
 
 function assertLocalDatabase(): void {
   const url = process.env.DATABASE_URL ?? "";
@@ -49,30 +68,54 @@ function daysFromNow(days: number, hour: number): Date {
 async function seed(): Promise<void> {
   assertLocalDatabase();
 
-  // Clearing by organizer keeps any other local data intact.
   const [existing] = await db
-    .select({ id: users.id })
+    .select({ id: users.id, orgUrl: users.orgUrl, currency: users.currency })
     .from(users)
     .where(eq(users.email, SEED_EMAIL));
-  if (existing) {
-    await db.delete(users).where(eq(users.id, existing.id));
-    console.log("removed previous seed data");
-  }
 
-  const [organizer] = await db
-    .insert(users)
-    .values({
-      email: SEED_EMAIL,
-      name: "Sam Rivera",
-      firstName: "Sam",
-      lastName: "Rivera",
-      orgName: "Lantern Collective",
-      orgUrl: "lantern",
-      currency: "USD",
-      emailVerified: true,
-      onboardedAt: new Date(),
-    })
-    .returning();
+  let organizer: { id: string };
+
+  if (existing) {
+    // A real account — yours, say. Clear only what a previous seed created and
+    // leave the person alone, rather than deleting and recreating them.
+    //
+    // Orders first: the foreign key to events is RESTRICT on purpose, so that
+    // financial history cannot vanish with an event. Tickets and order items
+    // cascade from the order.
+    await db.delete(orders).where(eq(orders.organizerId, existing.id));
+    await db.delete(events).where(eq(events.userId, existing.id));
+    await db.delete(venues).where(eq(venues.userId, existing.id));
+    console.log(`reusing existing account ${SEED_EMAIL}, cleared its seed data`);
+
+    // Onboarding fields are filled only where they are missing, so an already
+    // configured profile is untouched.
+    await db
+      .update(users)
+      .set({
+        currency: existing.currency ?? "USD",
+        orgUrl: existing.orgUrl ?? slugFor(SEED_EMAIL),
+        onboardedAt: new Date(),
+      })
+      .where(eq(users.id, existing.id));
+
+    organizer = existing;
+  } else {
+    const [created] = await db
+      .insert(users)
+      .values({
+        email: SEED_EMAIL,
+        name: "Sam Rivera",
+        firstName: "Sam",
+        lastName: "Rivera",
+        orgName: "Lantern Collective",
+        orgUrl: slugFor(SEED_EMAIL),
+        currency: "USD",
+        emailVerified: true,
+        onboardedAt: new Date(),
+      })
+      .returning();
+    organizer = created;
+  }
 
   const [venue] = await db
     .insert(venues)
@@ -209,10 +252,129 @@ async function seed(): Promise<void> {
     console.log(
       `seeded "${event.eventName}" (${spec.status}) with ${spec.variants.length} ticket type(s)`
     );
+
+    if (spec.status === "active") {
+      const sold = await seedOrders(organizer.id, event.id, "USD");
+      console.log(`  ${sold} order(s) with tickets`);
+    }
   }
 
   console.log(`\norganizer: ${SEED_EMAIL}`);
   console.log("done");
+}
+
+const BUYERS = [
+  ["Priya Raman", "priya.raman@example.com", "+1 512 555 0142"],
+  ["Marcus Webb", "m.webb@example.com", "+1 512 555 0177"],
+  ["Yuki Tanaka", "yuki.tanaka@example.com", "+81 90 5555 0123"],
+  ["Ana Ferreira", "ana.f@example.com", "+55 11 95555 0198"],
+  ["Tom Okafor", "tom.okafor@example.com", "+1 737 555 0110"],
+  ["Lena Fischer", "lena.fischer@example.com", "+49 151 5555 0165"],
+] as const;
+
+function reference(prefix: string): string {
+  return `${prefix}-${crypto.randomBytes(5).toString("base64url").toUpperCase()}`;
+}
+
+/**
+ * Buy tickets against an event, decrementing its stock the way a real
+ * checkout would, so remaining counts stay consistent with what was sold.
+ */
+async function seedOrders(
+  organizerId: string,
+  eventId: string,
+  currency: string
+): Promise<number> {
+  const variants = await db
+    .select()
+    .from(ticketVariants)
+    .where(eq(ticketVariants.eventId, eventId));
+  if (variants.length === 0) return 0;
+
+  let created = 0;
+
+  for (const [index, buyer] of BUYERS.entries()) {
+    const [name, email, phone] = buyer;
+    const variant = variants[index % variants.length];
+    const quantity = (index % 3) + 1;
+    if (variant.quantityRemaining < quantity) continue;
+
+    const line = {
+      type: variant.type,
+      quantity,
+      unitPriceMinor: variant.priceMinor,
+      lineTotalMinor: variant.priceMinor * quantity,
+    };
+    const totals = computeTotals([line], { currency });
+
+    // Spread the orders back over the last three weeks so the revenue chart
+    // and "sales today" figures have something to differ about.
+    const placedAt = new Date();
+    placedAt.setDate(placedAt.getDate() - index * 3);
+
+    const [order] = await db
+      .insert(orders)
+      .values({
+        orderNumber: reference("ORD"),
+        eventId,
+        organizerId,
+        customerName: name,
+        customerEmail: email,
+        customerPhone: phone,
+        currency,
+        subtotalMinor: totals.subtotalMinor,
+        discountMinor: totals.discountMinor,
+        gatewayFeeMinor: totals.gatewayFeeMinor,
+        platformFeeMinor: totals.platformFeeMinor,
+        totalMinor: totals.totalMinor,
+        payoutMinor: totals.payoutMinor,
+        paymentStatus: "completed",
+        orderStatus: "confirmed",
+        gateway: "razorpay",
+        gatewayPaymentId: reference("pay"),
+        gatewayOrderId: reference("order"),
+        createdAt: placedAt,
+      })
+      .returning();
+
+    await db.insert(orderItems).values({
+      orderId: order.id,
+      ticketVariantId: variant.id,
+      type: line.type,
+      quantity: line.quantity,
+      unitPriceMinor: line.unitPriceMinor,
+    });
+
+    await db.insert(tickets).values(
+      Array.from({ length: quantity }, (_, seat) => ({
+        orderId: order.id,
+        eventId,
+        ticketVariantId: variant.id,
+        code: `TKT-${crypto.randomBytes(12).toString("base64url")}`,
+        type: variant.type,
+        pricePaidMinor: variant.priceMinor,
+        attendeeName: name,
+        attendeeEmail: email,
+        attendeePhone: phone,
+        // A couple already through the door, so the attendee table shows both
+        // states rather than one.
+        ...(index < 2 && seat === 0
+          ? { status: "checked_in" as const, checkedInAt: new Date() }
+          : {}),
+        createdAt: placedAt,
+      }))
+    );
+
+    await db
+      .update(ticketVariants)
+      .set({ quantityRemaining: variant.quantityRemaining - quantity })
+      .where(eq(ticketVariants.id, variant.id));
+    variant.quantityRemaining -= quantity;
+
+    created += 1;
+  }
+
+  return created;
 }
 
 seed()

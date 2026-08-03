@@ -225,7 +225,7 @@ export function EventHomeDetails() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background opacity-100"></div>
       </div>
       <div className="container relative z-10 grid grid-cols-1 gap-8 py-12 md:grid-cols-3 md:gap-12 lg:gap-16">
-        <div className=" md:sticky top-32 w-full aspect-square max-w-[600px] overflow-hidden rounded-xl md:col-span-1">
+        <div className="md:sticky top-32 w-full aspect-square max-w-[600px] overflow-hidden rounded-xl md:col-span-1">
           <Image
             src={event.eventFlyer}
             alt="Event Flyer"
@@ -241,13 +241,13 @@ export function EventHomeDetails() {
               {event.eventName}
             </h1>
 
-            <div className="mt-2 text-lg  font-semibold text-muted-foreground">
+            <div className="mt-2 text-lg font-semibold text-muted-foreground">
               {event.venue.venueName}
               <span className="mx-2">|</span>
               {formattedDate}
             </div>
             <div className="w-full pt-8">
-              <Card className=" w-full shadow-none ">
+              <Card className="w-full shadow-none">
                 <CardContent className="flex items-center justify-between gap-4 p-6">
                   <div>
                     <div className="text-2xl font-bold">
@@ -349,7 +349,7 @@ export function EventHomeDetails() {
                     onClick={() => window.open(event.venue.mapsUrl, "_blank")}
                     variant="outline"
                     size="sm"
-                    className=" self-start flex items-center gap-1"
+                    className="self-start flex items-center gap-1"
                   >
                     <MapPinIcon className="h-4 w-4" />
                     Open in maps

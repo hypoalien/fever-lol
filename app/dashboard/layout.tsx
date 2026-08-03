@@ -1,20 +1,29 @@
 "use client";
+
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+
 import { AppSidebar } from "@/components/app-sidebar";
+import {
+  CommandPaletteProvider,
+  CommandTrigger,
+} from "@/components/command-palette";
+import SessionWrapper from "@/components/session-wrapper";
+import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import SessionWrapper from "@/components/session-wrapper";
-import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { QueryProvider } from "@/lib/query/client";
 
+/**
+ * The dashboard frame.
+ *
+ * The header used to carry a breadcrumb that read "Dashboard" on every single
+ * page — it named the app, not the location. Now that each page states its own
+ * name in an h1, that space belongs to the thing an organizer actually needs
+ * from anywhere: search.
+ */
 export default function DashboardLayout({
   children,
 }: {
@@ -22,27 +31,23 @@ export default function DashboardLayout({
 }) {
   return (
     <SessionWrapper>
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset className="flex flex-col min-h-screen overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-2 sticky top-0 bg-background z-10">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-        <main className="flex-1 overflow-auto">
-          <NuqsAdapter>{children}</NuqsAdapter>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+      <QueryProvider>
+        <NuqsAdapter>
+          <CommandPaletteProvider>
+            <SidebarProvider>
+              <AppSidebar />
+              <SidebarInset className="flex min-h-screen flex-col overflow-hidden">
+                <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 bg-background/80 px-4 backdrop-blur">
+                  <SidebarTrigger className="-ml-1" />
+                  <Separator orientation="vertical" className="mr-1 h-4" />
+                  <CommandTrigger />
+                </header>
+                <main className="flex-1 overflow-auto">{children}</main>
+              </SidebarInset>
+            </SidebarProvider>
+          </CommandPaletteProvider>
+        </NuqsAdapter>
+      </QueryProvider>
     </SessionWrapper>
   );
 }

@@ -14,10 +14,11 @@ test.describe("dashboard", () => {
   test("the overview renders real figures, not NaN", async ({ page }) => {
     await page.goto("/dashboard");
 
-    await expect(page.getByText("Total Revenue")).toBeVisible();
+    await expect(page.getByText("Revenue this month")).toBeVisible();
+    await expect(page.getByText("Tickets sold")).toBeVisible();
 
-    // The seeded organizer has no orders, so zero is correct — what must not
-    // appear is NaN, which is what reading a renamed field produces.
+    // What must not appear is NaN, which is what reading a renamed field
+    // produces.
     const body = await page.locator("body").innerText();
     expect(body).not.toContain("NaN");
     expect(body).not.toContain("undefined");
@@ -26,11 +27,94 @@ test.describe("dashboard", () => {
     expect(body).toMatch(/[$₹€£]\s?[\d,]+/);
   });
 
-  test("the events list shows the seeded events", async ({ page }) => {
+  test("the events list shows the seeded events, priced", async ({ page }) => {
     await page.goto("/dashboard/events");
 
     await expect(page.getByText("Midnight Frequencies").first()).toBeVisible();
     await expect(page.getByText("Sunset Sessions").first()).toBeVisible();
+
+    // Lowest Early Bird tier. Reading the wrong price field renders "$NaN",
+    // which is how this was found.
+    await expect(page.getByText("From $25.00").first()).toBeVisible();
+  });
+
+  test("no screen renders NaN or undefined", async ({ page }) => {
+    // A blanket guard for the failure mode that runs through this whole
+    // codebase: a renamed field read by a client nobody updated.
+    for (const path of [
+      "/dashboard",
+      "/dashboard/events",
+      "/dashboard/venues",
+      "/dashboard/discounts",
+      "/dashboard/orders",
+      "/dashboard/attendees",
+    ]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await page.waitForTimeout(1200);
+      const body = await page.locator("body").innerText();
+      expect(body, `${path} renders NaN`).not.toContain("NaN");
+      expect(body, `${path} renders undefined`).not.toContain("undefined");
+    }
+  });
+
+  test("every module page has a heading and a description", async ({ page }) => {
+    // The shell drifted before: orders and attendees had no heading at all
+    // and discounts had one at a different size.
+    for (const [path, heading] of [
+      ["/dashboard", "Overview"],
+      ["/dashboard/events", "Events"],
+      ["/dashboard/venues", "Venues"],
+      ["/dashboard/orders", "Orders"],
+      ["/dashboard/attendees", "Attendees"],
+      ["/dashboard/discounts", "Discounts"],
+      ["/dashboard/settings", "Settings"],
+    ]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await expect(
+        page.getByRole("heading", { level: 1, name: heading })
+      ).toBeVisible();
+    }
+  });
+
+  test("sidebar navigation does not reload the document", async ({ page }) => {
+    // The sidebar used plain anchors, so every click tore down the app. If a
+    // full navigation happens this marker is gone.
+    await page.goto("/dashboard");
+    await page.evaluate(() => {
+      (window as unknown as { __spa: boolean }).__spa = true;
+    });
+
+    await page.getByRole("link", { name: "Orders" }).click();
+    await expect(page).toHaveURL(/\/dashboard\/orders/);
+
+    const survived = await page.evaluate(
+      () => (window as unknown as { __spa?: boolean }).__spa === true
+    );
+    expect(survived, "sidebar click caused a full page load").toBe(true);
+  });
+
+  test("cmd-k opens the palette and jumps to a section", async ({ page }) => {
+    await page.goto("/dashboard");
+    // The shortcut is registered by the palette, so wait for its visible half
+    // rather than racing the key against hydration.
+    const trigger = page.getByRole("button", { name: /Search/ });
+    await expect(trigger).toBeVisible();
+
+    await page.keyboard.press("ControlOrMeta+k");
+    await expect(
+      page.getByPlaceholder("Search, or jump to a section")
+    ).toBeVisible();
+
+    // Typing narrows to the seeded event, so the palette is reading the same
+    // cache the pages use rather than a separate fetch.
+    await page.keyboard.type("midnight");
+    await expect(page.getByText("Midnight Frequencies")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("ControlOrMeta+k");
+    await page.keyboard.type("orders");
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/dashboard\/orders/);
   });
 
   test("the venues list shows the seeded venues", async ({ page }) => {
@@ -51,6 +135,24 @@ test.describe("dashboard", () => {
     // The placeholder rows that used to be hardcoded here.
     await expect(page.getByText("FREESHIP")).toHaveCount(0);
     await expect(page.getByText("WELCOME15")).toHaveCount(0);
+  });
+
+  test("orders render with correctly scaled amounts", async ({ page }) => {
+    await page.goto("/dashboard/orders");
+
+    await expect(page.getByText("Priya Raman").first()).toBeVisible();
+
+    // Amounts are stored in minor units. Printing them raw put a hundredfold
+    // error on every row, which is the kind of thing an organizer notices
+    // before we do.
+    const body = await page.locator("body").innerText();
+    expect(body).toMatch(/\$\d+\.\d{2}/);
+    expect(body, "unscaled minor units on screen").not.toMatch(/\$\d{5,}(?!\.)/);
+  });
+
+  test("attendees render, with check-in state", async ({ page }) => {
+    await page.goto("/dashboard/attendees");
+    await expect(page.getByText("Priya Raman").first()).toBeVisible();
   });
 
   test("the orders and attendees tables load without erroring", async ({

@@ -1,194 +1,177 @@
 "use client";
-// types.ts
+
+import { CalendarDays, CreditCard, TicketCheck, Wallet } from "lucide-react";
+
+import { RevenueChart } from "@/components/dashboard/revenue-chart";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
+import { ChartSkeleton, StatGridSkeleton } from "@/components/ui/skeletons";
+import { useDashboardStats } from "@/lib/query/hooks";
+
 /**
- * Mirrors `getDashboardData` in lib/data/analytics.ts. Amounts are integer
- * minor units, like everywhere else; formatting happens at render.
+ * The overview.
+ *
+ * Reads through the shared cache, so arriving here from anywhere else in the
+ * dashboard paints from what is already held and revalidates behind the paint.
+ * It used to fetch on mount every time and show a spinner while it did.
  */
-interface DashboardData {
-  totalRevenue: { amountMinor: number; percentageChange: number };
-  salesToday: { amountMinor: number; percentageChange: number };
-  ticketsSold: { count: number; percentageChange: number };
-  activeEvents: { count: number; change: number };
-  overview: { name: string; totalMinor: number }[];
-  recentSales: {
-    id: string;
-    name: string;
-    email: string;
-    amountMinor: number;
-    date: string;
-  }[];
-  currency: string;
-}
-
-import { useEffect, useState } from "react";
-import { usePrice } from "@/hooks/use-price";
-import type { Metadata } from "next";
-import { Activity, CreditCard, DollarSign, Users } from "lucide-react";
-import axios from "axios";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Overview } from "@/components/overview";
-import { RecentSales } from "@/components/recent-sales";
-
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Event Ticketing Dashboard",
-};
-
 export default function DashboardPage() {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-    null
-  );
-  const [loading, setLoading] = useState(true);
-  const { currency } = usePrice();
+  const { data, isPending, isError, refetch } = useDashboardStats();
 
-  // Bound to the organizer's currency, applied to minor units.
+  if (isError) {
+    return (
+      <div className="grid min-h-[40vh] place-items-center p-6 text-center">
+        <div>
+          <p className="font-medium">Could not load your dashboard</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The figures could not be fetched.
+          </p>
+          <button
+            onClick={() => void refetch()}
+            className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <div className="container mx-auto space-y-6 p-4 md:p-6">
+        <div className="h-8 w-40 animate-pulse rounded-md bg-muted" />
+        <StatGridSkeleton />
+        <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <ChartSkeleton />
+          <div className="rounded-lg border bg-card p-5">
+            <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { currency } = data;
   const money = (minor: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: dashboardData?.currency ?? currency,
+      currency,
+      maximumFractionDigits: 0,
     }).format(minor / 100);
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      axios
-        .get("/api/analytics")
-        .then((response) => {
-          setDashboardData(response.data);
-        })
-        .catch((error) => {
-          console.error("Error fetching dashboard data:", error);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  if (loading || !dashboardData) {
-    return <div>Loading...</div>;
-  }
-
-  // const currencySymbol = dashboardData.currency === "USD" ? "$" : dashboardData.currency === "INR" ? "₹" : "$";
+  const monthly = data.overview.map((point) => point.totalMinor);
+  const noSales = monthly.every((value) => value === 0);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Dashboard
-          </h2>
+    <div className="container mx-auto space-y-6 p-4 md:p-6">
+      <FadeIn>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Everything across your events, last twelve months.
+          </p>
         </div>
+      </FadeIn>
 
-        {/* Cards Grid */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Revenue
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {money(dashboardData.totalRevenue.amountMinor)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +{dashboardData.totalRevenue.percentageChange.toFixed(2)}% from
-                last month
-              </p>
-            </CardContent>
-          </Card>
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StaggerItem>
+          <StatCard
+            label="Revenue this month"
+            value={data.totalRevenue.amountMinor}
+            format={money}
+            change={data.totalRevenue.percentageChange}
+            changeLabel="vs last month"
+            series={monthly}
+            empty={noSales}
+            icon={<Wallet className="size-4" />}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Sales today"
+            value={data.salesToday.amountMinor}
+            format={money}
+            change={data.salesToday.percentageChange}
+            changeLabel="vs yesterday"
+            // No daily series is returned, so this card carries no sparkline
+            // rather than plotting monthly totals under a daily figure.
+            series={[]}
+            empty={noSales}
+            icon={<CreditCard className="size-4" />}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Tickets sold"
+            value={data.ticketsSold.count}
+            format={(value) => value.toLocaleString()}
+            change={data.ticketsSold.percentageChange}
+            changeLabel="vs last month"
+            series={monthly}
+            empty={noSales}
+            icon={<TicketCheck className="size-4" />}
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard
+            label="Events on sale"
+            value={data.activeEvents.count}
+            format={(value) => value.toLocaleString()}
+            change={0}
+            changeLabel=""
+            series={[]}
+            empty
+            emptyLabel={
+              data.activeEvents.count === 1 ? "1 event live" : "Currently live"
+            }
+            icon={<CalendarDays className="size-4" />}
+          />
+        </StaggerItem>
+      </Stagger>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sales Today</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {money(dashboardData.salesToday.amountMinor)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +{dashboardData.salesToday.percentageChange.toFixed(2)}% from
-                yesterday
-              </p>
-            </CardContent>
-          </Card>
+      <FadeIn delay={0.08}>
+        <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <section className="rounded-lg border bg-card p-5">
+            <div className="mb-4 flex items-baseline justify-between">
+              <h2 className="text-sm font-semibold">Revenue</h2>
+              {/* Units stated once, so the axis does not repeat the symbol
+                  on every tick. */}
+              <span className="text-xs text-muted-foreground">in {currency}</span>
+            </div>
+            <RevenueChart data={data.overview} currency={currency} />
+          </section>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Tickets Sold
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                +{dashboardData.ticketsSold.count}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +{dashboardData.ticketsSold.percentageChange.toFixed(2)}% from
-                last month
+          <section className="rounded-lg border bg-card p-5">
+            <h2 className="text-sm font-semibold">Recent sales</h2>
+            {data.recentSales.length === 0 ? (
+              <p className="mt-6 text-sm text-muted-foreground">
+                Orders show up here as they come in.
               </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Events
-              </CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                +{dashboardData.activeEvents.count}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                +{dashboardData.activeEvents.change.toFixed(2)}% from
-                last month
-              </p>
-            </CardContent>
-          </Card>
+            ) : (
+              <Stagger className="mt-4 space-y-4">
+                {data.recentSales.map((sale) => (
+                  <StaggerItem key={sale.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {sale.name}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {sale.email}
+                        </p>
+                      </div>
+                      <p className="shrink-0 text-sm font-medium tabular-nums">
+                        {money(sale.amountMinor)}
+                      </p>
+                    </div>
+                  </StaggerItem>
+                ))}
+              </Stagger>
+            )}
+          </section>
         </div>
-
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
-          <Card className="lg:col-span-4">
-            <CardHeader>
-              <CardTitle>Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="pl-2">
-              <Overview data={dashboardData.overview} />
-            </CardContent>
-          </Card>
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle>Recent Sales</CardTitle>
-              <CardDescription>
-                You made {dashboardData.recentSales.length} sales this month.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RecentSales sales={dashboardData.recentSales} />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </FadeIn>
     </div>
   );
 }

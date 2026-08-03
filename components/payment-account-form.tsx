@@ -1,26 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { Check, Eye, EyeOff, Info } from "lucide-react";
+import { toast } from "sonner";
+
+import { SaveBar } from "@/components/settings/save-bar";
+import { SettingsSection } from "@/components/settings/section";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { FadeIn } from "@/components/ui/motion";
 import {
   Select,
   SelectContent,
@@ -28,319 +19,322 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
+import { FormSkeleton } from "@/components/ui/skeletons";
+import { errorMessage } from "@/lib/errors";
 
-const paymentFormSchema = z.object({
-  paymentGateway: z
-    .string()
-    .nonempty({ message: "Please select a payment gateway" }),
-  razorpayKeyId: z
-    .string()
-    .min(20, { message: "Please enter a valid Razorpay Key ID" })
-    .optional()
-    .nullable(),
-  razorpayKeySecret: z
-    .string()
-    .min(20, { message: "Please enter a valid Razorpay Key Secret" })
-    .optional()
-    .nullable(),
-  stripePublishableKey: z
-    .string()
-    .min(20, { message: "Please enter a valid Stripe Publishable Key" })
-    .optional()
-    .nullable(),
-  stripeSecretKey: z
-    .string()
-    .min(20, { message: "Please enter a valid Stripe Secret Key" })
-    .optional()
-    .nullable(),
-});
+/**
+ * Where an organizer's ticket money goes.
+ *
+ * This screen was broken end to end. It posted a `paymentGateway` field to an
+ * endpoint whose schema requires `gateway`, so every save returned 400. It
+ * read back `razorpayKeySecret` and `razorpayKeyId`, but the endpoint returns
+ * `razorpayKeySecretSet` and a *masked* key id — so nothing loaded, and had
+ * the save worked it would have written the mask over the real key. And
+ * nothing read the stored keys at checkout regardless.
+ *
+ * The contract is now matched exactly: masked values are shown as status, not
+ * loaded into inputs, and a secret is only sent when the organizer types a new
+ * one. Blank means "leave what is stored alone".
+ */
 
-type PaymentFormValues = z.infer<typeof paymentFormSchema>;
+type Gateway = "razorpay" | "stripe";
+
+/** Exactly what GET /api/payment-config returns. */
+interface MaskedConfig {
+  accountHolderName: string | null;
+  gateway: Gateway | null;
+  razorpayKeyId: string | null;
+  razorpayKeySecretSet: boolean;
+  stripePublishableKey: string | null;
+  stripeSecretKeySet: boolean;
+}
+
+const GATEWAYS: Array<{ value: Gateway; label: string; note: string }> = [
+  {
+    value: "razorpay",
+    label: "Razorpay",
+    note: "India. Cards, UPI, netbanking and wallets.",
+  },
+  {
+    value: "stripe",
+    label: "Stripe",
+    note: "Most other countries, including Japan, the EU, the UK and the US.",
+  },
+];
 
 export function PaymentForm() {
-  const [gateway, setGateway] = useState<"razorpay" | "stripe" | "">("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showRazorpaySecret, setShowRazorpaySecret] = useState(false);
-  const [showStripeSecret, setShowStripeSecret] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [stored, setStored] = useState<MaskedConfig | null>(null);
 
-  const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentFormSchema),
-    defaultValues: {
-      paymentGateway: "",
-      razorpayKeyId: null,
-      razorpayKeySecret: null,
-      stripePublishableKey: null,
-      stripeSecretKey: null,
-    },
-  });
+  const [gateway, setGateway] = useState<Gateway | "">("");
+  const [accountHolderName, setAccountHolderName] = useState("");
+  const [keyId, setKeyId] = useState("");
+  const [keySecret, setKeySecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPaymentConfig = async () => {
-      try {
-        const response = await fetch("/api/payment-config");
-        if (!response.ok) throw new Error("Failed to fetch configuration");
+    let cancelled = false;
 
-        const data = await response.json();
-        if (data) {
-          // Transform empty strings to null
-          const formattedData = {
-            ...data,
-            razorpayKeyId: data.razorpayKeyId || null,
-            razorpayKeySecret: data.razorpayKeySecret || null,
-            stripePublishableKey: data.stripePublishableKey || null,
-            stripeSecretKey: data.stripeSecretKey || null,
-          };
-          form.reset(formattedData);
-          setGateway(data.paymentGateway || "");
+    axios
+      .get<Partial<MaskedConfig>>("/api/payment-config")
+      .then(({ data }) => {
+        if (cancelled) return;
+        const config: MaskedConfig = {
+          accountHolderName: data.accountHolderName ?? null,
+          gateway: data.gateway ?? null,
+          razorpayKeyId: data.razorpayKeyId ?? null,
+          razorpayKeySecretSet: Boolean(data.razorpayKeySecretSet),
+          stripePublishableKey: data.stripePublishableKey ?? null,
+          stripeSecretKeySet: Boolean(data.stripeSecretKeySet),
+        };
+        setStored(config);
+        setGateway(config.gateway ?? "");
+        setAccountHolderName(config.accountHolderName ?? "");
+      })
+      .catch((requestError) => {
+        if (!cancelled) {
+          toast.error(
+            errorMessage(requestError, "Could not load your payment settings")
+          );
         }
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to load configuration");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPaymentConfig();
-  }, [form]);
-
-  const onSubmit = async (data: PaymentFormValues) => {
-    setIsSubmitting(true);
-    try {
-      // Filter out null values and prepare the payload
-      const payload = {
-        paymentGateway: data.paymentGateway,
-        ...(data.paymentGateway === "razorpay" && {
-          razorpayKeyId: data.razorpayKeyId || "",
-          razorpayKeySecret: data.razorpayKeySecret || "",
-        }),
-        ...(data.paymentGateway === "stripe" && {
-          stripePublishableKey: data.stripePublishableKey || "",
-          stripeSecretKey: data.stripeSecretKey || "",
-        }),
-      };
-
-      const response = await fetch("/api/payment-config", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save configuration");
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-      toast.success("Payment gateway configuration saved successfully");
-    } catch (error) {
-      console.error("Submit error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to save configuration"
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="rounded-lg border bg-card p-5">
+        <FormSkeleton />
+      </div>
     );
   }
 
+  const isRazorpay = gateway === "razorpay";
+  const storedKeyId = isRazorpay
+    ? stored?.razorpayKeyId
+    : stored?.stripePublishableKey;
+  const secretStored = isRazorpay
+    ? Boolean(stored?.razorpayKeySecretSet)
+    : Boolean(stored?.stripeSecretKeySet);
+
+  // A connected account is one where both halves are on file. Switching
+  // gateway means the new one has nothing stored yet.
+  const connected =
+    stored?.gateway === gateway && Boolean(storedKeyId) && secretStored;
+
+  const dirty =
+    gateway !== (stored?.gateway ?? "") ||
+    accountHolderName !== (stored?.accountHolderName ?? "") ||
+    keyId.trim() !== "" ||
+    keySecret.trim() !== "";
+
+  const reset = () => {
+    setGateway(stored?.gateway ?? "");
+    setAccountHolderName(stored?.accountHolderName ?? "");
+    setKeyId("");
+    setKeySecret("");
+    setError(null);
+  };
+
+  const save = async () => {
+    if (!gateway) {
+      setError("Choose where your money should go first");
+      return;
+    }
+    // Connecting for the first time needs both halves; an existing connection
+    // can be left alone or replaced, but never half-replaced.
+    if (!connected && (!keyId.trim() || !keySecret.trim())) {
+      setError("Enter both keys to connect this account");
+      return;
+    }
+    if ((keyId.trim() === "") !== (keySecret.trim() === "")) {
+      setError("Replace both keys together, or neither");
+      return;
+    }
+
+    setError(null);
+    setSaving(true);
+    try {
+      // Only what the organizer actually typed is sent. Blank fields are
+      // omitted so the stored values survive.
+      const payload: Record<string, string> = { gateway };
+      if (accountHolderName.trim()) {
+        payload.accountHolderName = accountHolderName.trim();
+      }
+      if (keyId.trim()) {
+        payload[isRazorpay ? "razorpayKeyId" : "stripePublishableKey"] =
+          keyId.trim();
+      }
+      if (keySecret.trim()) {
+        payload[isRazorpay ? "razorpayKeySecret" : "stripeSecretKey"] =
+          keySecret.trim();
+      }
+
+      await axios.post("/api/payment-config", payload);
+
+      const { data } = await axios.get<MaskedConfig>("/api/payment-config");
+      setStored(data);
+      setKeyId("");
+      setKeySecret("");
+      toast.success("Payment settings saved");
+    } catch (requestError) {
+      toast.error(
+        errorMessage(requestError, "Could not save your payment settings")
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const keyLabels = isRazorpay
+    ? { id: "Key ID", secret: "Key secret", placeholder: "rzp_live_…" }
+    : { id: "Publishable key", secret: "Secret key", placeholder: "pk_live_…" };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Payment Gateway Configuration</CardTitle>
-        <CardDescription>
-          Configure your payment gateway settings for accepting payments.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <FormField
-              control={form.control}
-              name="paymentGateway"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-semibold">
-                    Payment Gateway
-                  </FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      setGateway(value as "razorpay" | "stripe");
-                      field.onChange(value);
-                    }}
-                    value={field.value}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment gateway" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="razorpay">Razorpay (India)</SelectItem>
-                      <SelectItem value="stripe">Stripe (USA)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <FadeIn className="space-y-6">
+      <SettingsSection
+        title="Where your money goes"
+        description="Buyers pay this account directly. Fever.lol never holds your ticket revenue."
+        footer={
+          gateway
+            ? "Keys are encrypted before they are stored, and the secret is never sent back to your browser."
+            : undefined
+        }
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="gateway">Payment provider</Label>
+          <Select
+            value={gateway}
+            onValueChange={(value) => setGateway(value as Gateway)}
+          >
+            <SelectTrigger id="gateway" className="sm:max-w-sm">
+              <SelectValue placeholder="Choose a provider" />
+            </SelectTrigger>
+            <SelectContent>
+              {GATEWAYS.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {gateway && (
+            <p className="text-xs text-muted-foreground">
+              {GATEWAYS.find((entry) => entry.value === gateway)?.note}
+            </p>
+          )}
+        </div>
+
+        {gateway && (
+          <div className="space-y-1.5">
+            <Label htmlFor="accountHolderName">Account name</Label>
+            <Input
+              id="accountHolderName"
+              value={accountHolderName}
+              onChange={(event) => setAccountHolderName(event.target.value)}
+              placeholder="Lantern Collective Ltd"
+              className="sm:max-w-sm"
             />
+            <p className="text-xs text-muted-foreground">
+              What buyers see on their card statement.
+            </p>
+          </div>
+        )}
+      </SettingsSection>
 
-            {gateway === "razorpay" && (
-              <div className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="razorpayKeyId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold">
-                        Razorpay Key ID
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="rzp_live_xxxxxxxxxxxxxx"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.value || null)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="razorpayKeySecret"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold">
-                        Razorpay Key Secret
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showRazorpaySecret ? "text" : "password"}
-                            placeholder="Enter your Razorpay Key Secret"
-                            {...field}
-                            value={field.value || ""}
-                            onChange={(e) =>
-                              field.onChange(e.target.value || null)
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowRazorpaySecret(!showRazorpaySecret)
-                            }
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                          >
-                            {showRazorpaySecret ? (
-                              <EyeOff className="h-4 w-4 text-gray-500" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
+      {gateway && (
+        <SettingsSection
+          title="API keys"
+          description={`From your ${
+            isRazorpay ? "Razorpay" : "Stripe"
+          } dashboard, under developers.`}
+        >
+          {connected && (
+            <div className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 px-3 py-2.5">
+              <Badge
+                variant="outline"
+                className="gap-1 border-success/30 bg-success/10 text-success"
+              >
+                <Check className="size-3" />
+                Connected
+              </Badge>
+              <span className="font-mono text-xs text-muted-foreground">
+                {storedKeyId}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Secret on file
+              </span>
+            </div>
+          )}
 
-            {gateway === "stripe" && (
-              <div className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="stripePublishableKey"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold">
-                        Stripe Publishable Key
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="pk_live_xxxxxxxxxxxxxx"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.value || null)
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="stripeSecretKey"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-semibold">
-                        Stripe Secret Key
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showStripeSecret ? "text" : "password"}
-                            placeholder="Enter your Stripe Secret Key"
-                            {...field}
-                            value={field.value || ""}
-                            onChange={(e) =>
-                              field.onChange(e.target.value || null)
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowStripeSecret(!showStripeSecret)
-                            }
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                          >
-                            {showStripeSecret ? (
-                              <EyeOff className="h-4 w-4 text-gray-500" />
-                            ) : (
-                              <Eye className="h-4 w-4 text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
+          <div className="space-y-1.5">
+            <Label htmlFor="keyId">{keyLabels.id}</Label>
+            <Input
+              id="keyId"
+              value={keyId}
+              onChange={(event) => setKeyId(event.target.value)}
+              placeholder={
+                connected ? "Leave blank to keep the current key" : keyLabels.placeholder
+              }
+              autoComplete="off"
+            />
+          </div>
 
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white rounded-full border-t-transparent" />
-                  Saving...
-                </>
-              ) : (
-                "Save Configuration"
-              )}
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          <div className="space-y-1.5">
+            <Label htmlFor="keySecret">{keyLabels.secret}</Label>
+            <div className="relative">
+              <Input
+                id="keySecret"
+                type={showSecret ? "text" : "password"}
+                value={keySecret}
+                onChange={(event) => setKeySecret(event.target.value)}
+                placeholder={
+                  connected ? "Leave blank to keep the current secret" : "••••••••"
+                }
+                autoComplete="off"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecret(!showSecret)}
+                aria-label={showSecret ? "Hide secret" : "Show secret"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showSecret ? (
+                  <EyeOff className="size-4" />
+                ) : (
+                  <Eye className="size-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          {!connected && (
+            <p className="flex items-start gap-2 text-xs text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0" />
+              Until an account is connected, tickets for your events cannot be
+              paid for.
+            </p>
+          )}
+        </SettingsSection>
+      )}
+
+      <SaveBar
+        visible={dirty}
+        saving={saving}
+        onSave={() => void save()}
+        onReset={reset}
+      />
+    </FadeIn>
   );
 }

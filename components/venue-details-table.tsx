@@ -1,136 +1,105 @@
 "use client";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { VenueCard } from "@/components/venue-card";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Building2, Search } from "lucide-react";
-export interface Venue {
-  id: string;
-  venueName: string;
-  address: string;
-  city: string;
-  state: string;
-  capacity: number;
-  mapsUrl: string;
-  status?: string;
-  country: string;
-  timeZone: string;
-  userId: string;
-}
 
-export const fetchVenues = async () => {
-  try {
-    const response = await axios.get<Venue[]>("/api/venues");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching venues:", error);
-    return [];
-  }
-};
+import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useQueryState } from "nuqs";
+import { Building2, Plus, Search } from "lucide-react";
+
+import { EmptyState, LoadError } from "@/components/dashboard/page-shell";
+import { VenueCard } from "@/components/venue-card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { FadeIn } from "@/components/ui/motion";
+import { CardGridSkeleton } from "@/components/ui/skeletons";
+import { keys, useVenues, type VenueSummary } from "@/lib/query/hooks";
+
 
 export function VenuesTable() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [venues, setVenues] = useState<Venue[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isPending, isError, refetch } = useVenues();
+  const client = useQueryClient();
+  // The dialog lives in VenueCard but is opened from here, through the URL
+  // state both components read — so the toolbar keeps its one row.
+  const [, setEditVenue] = useQueryState("editVenue");
 
-  useEffect(() => {
-    const loadVenues = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await fetchVenues();
-        setVenues(data);
-      } catch (err) {
-        setError("Failed to load venues");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  /**
+   * VenueCard adds and removes rows through a `useState` setter. Rather than
+   * duplicating its list in local state — which would go stale the moment the
+   * cache revalidated — the same setter shape is adapted onto the cache, so a
+   * created or deleted venue shows immediately and survives navigation.
+   */
+  const setVenues = useCallback<React.Dispatch<React.SetStateAction<VenueSummary[]>>>(
+    (update) => {
+      client.setQueryData<VenueSummary[]>(keys.venues, (previous) => {
+        const current = previous ?? [];
+        return typeof update === "function" ? update(current) : update;
+      });
+    },
+    [client]
+  );
 
-    loadVenues();
-  }, []);
-
-  const filteredVenues = venues
-    ? venues.filter((venue) => {
-        const venueValuesString = Object.values(venue)
-          .filter((value) => value !== undefined && value !== null)
-          .map((value) => value.toString().toLowerCase())
-          .join(" ");
-        const matchesSearch = venueValuesString.includes(
-          searchQuery.toLowerCase()
-        );
-        return matchesSearch;
-      })
-    : [];
-
-  if (error) {
+  if (isError) {
     return (
-      <div className="flex justify-center items-center p-4">
-        <p className="text-red-500">{error}</p>
-      </div>
+      <LoadError title="Could not load venues" onRetry={() => void refetch()} />
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-4">
-        <p>Loading venues...</p>
-      </div>
-    );
-  }
+  if (isPending) return <CardGridSkeleton cards={4} />;
+
+  const query = searchQuery.toLowerCase();
+  const filtered = data.filter((venue) =>
+    Object.values(venue)
+      .filter((value) => value !== undefined && value !== null)
+      .map((value) => String(value).toLowerCase())
+      .join(" ")
+      .includes(query)
+  );
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8">
-      <Card className="border-border/40 shadow-lg hover:shadow-xl transition-all duration-200">
-        <CardHeader className="space-y-4 bg-card/50 rounded-t-lg border-b border-border/30">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
-                <Building2 className="h-6 w-6 text-primary" />
-              </div>
-              <div className="space-y-1">
-                <CardTitle className="text-xl font-bold text-foreground">
-                  Venues Overview
-                </CardTitle>
-                <CardDescription className="text-muted-foreground/80">
-                  {venues.length} {venues.length === 1 ? "venue" : "venues"}{" "}
-                  available
-                </CardDescription>
-              </div>
-            </div>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <p className="text-sm text-muted-foreground">
+          {data.length} {data.length === 1 ? "venue" : "venues"}
+        </p>
+        <div className="relative sm:ml-auto sm:w-72">
+          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, city or address"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Button size="sm" onClick={() => void setEditVenue("new")}>
+          <Plus className="mr-2 size-4" />
+          Add venue
+        </Button>
+      </div>
 
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Input
-                  placeholder="Search venues..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 w-[200px] lg:w-[300px] pl-9 border-border/30 
-                  focus:border-primary focus:ring-primary/20 
-                  bg-background/50 backdrop-blur-sm
-                  placeholder:text-muted-foreground/50"
-                />
-                <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground/50" />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
+      {data.length === 0 ? (
+        <EmptyState
+          icon={<Building2 className="size-5" />}
+          title="No venues yet"
+          description="Add the places you run events at once, then pick them when you create an event."
+          action={
+            <Button size="sm" onClick={() => void setEditVenue("new")}>
+              <Plus className="mr-2 size-4" />
+              Add your first venue
+            </Button>
+          }
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<Search className="size-5" />}
+          title="Nothing matches that"
+          description="Name, city and address are all searched — try a shorter term."
+        />
+      ) : null}
 
-        <CardContent className="p-4 md:p-6">
-          <div className="space-y-4">
-            <VenueCard venues={filteredVenues} setVenues={setVenues} />
-          </div>
-        </CardContent>
-      </Card>
+      <FadeIn>
+        {/* VenueCard renders the grid and owns the add/edit dialog. */}
+        <VenueCard venues={filtered} setVenues={setVenues} />
+      </FadeIn>
     </div>
   );
 }

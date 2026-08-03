@@ -339,7 +339,7 @@ export function OnboardingForm() {
                         urlAvailable === true
                           ? "border-green-500"
                           : urlAvailable === false
-                          ? "border-red-500"
+                          ? "border-destructive"
                           : ""
                       }`}
                     />
@@ -358,7 +358,7 @@ export function OnboardingForm() {
                       </p>
                     )}
                     {urlAvailable === true && (
-                      <p className="flex items-center text-green-500">
+                      <p className="flex items-center text-success">
                         <CheckCircleIcon className="h-4 w-4 mr-1.5" />
                         URL is available
                       </p>
@@ -388,7 +388,7 @@ export function OnboardingForm() {
         </form>
       </main>
       <footer className="border-t bg-background mt-auto">
-        <div className=" mx-auto px-4 py-8">
+        <div className="mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             {/* Logo and Description Section */}
             <div className="space-y-4 max-w-sm">

@@ -1,9 +1,14 @@
+import { PageHeader, PageShell } from "@/components/dashboard/page-shell";
 import EventsComponent from "@/components/all-events";
 
 export default function EventsPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-x-hidden">
+    <PageShell>
+      <PageHeader
+        title="Events"
+        description="Everything you are running. Drafts stay private until you publish them."
+      />
       <EventsComponent />
-    </div>
+    </PageShell>
   );
 }

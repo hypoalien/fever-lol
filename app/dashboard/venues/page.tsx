@@ -1,9 +1,14 @@
+import { PageHeader, PageShell } from "@/components/dashboard/page-shell";
 import { VenuesTable } from "@/components/venue-details-table";
 
 export default function VenuesPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <PageShell>
+      <PageHeader
+        title="Venues"
+        description="The places you run events. Add one here and pick it when you create an event."
+      />
       <VenuesTable />
-    </div>
+    </PageShell>
   );
 }

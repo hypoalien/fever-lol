@@ -9,10 +9,19 @@
 
 /** Currencies we support, with the exponent used to reach minor units. */
 const CURRENCY_EXPONENT: Record<string, number> = {
-  INR: 2,
   USD: 2,
   EUR: 2,
   GBP: 2,
+  INR: 2,
+  CAD: 2,
+  AUD: 2,
+  BRL: 2,
+  SGD: 2,
+  // Zero-decimal. ¥1000 is 1000 minor units, not 100000 — assuming two
+  // everywhere would have multiplied every Japanese price by a hundred, and
+  // the gateways expect the unscaled integer for these too.
+  JPY: 0,
+  KRW: 0,
 };
 
 export const SUPPORTED_CURRENCIES = Object.keys(CURRENCY_EXPONENT);
