@@ -149,8 +149,12 @@ export function EventHomeDetails() {
 
   const handleCheckout = async () => {
     try {
-      const cartItems = selectedTickets.filter((ticket) => ticket.quantity > 0);
-      if (!event?._id) return;
+      // Send quantities only — the server prices the cart from the event
+      // record, so anything we put here beyond type and quantity is ignored.
+      const cartItems = selectedTickets
+        .filter((ticket) => ticket.quantity > 0)
+        .map((ticket) => ({ type: ticket.type, quantity: ticket.quantity }));
+      if (!event?._id || cartItems.length === 0) return;
 
       const response = await axios.post("/api/checkout", {
         cart: cartItems,

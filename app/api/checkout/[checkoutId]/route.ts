@@ -1,77 +1,93 @@
 import { ObjectId } from "mongodb";
-import { db } from "@/lib/db";
-// import { auth } from "@/auth";
 
+import { db } from "@/lib/db";
+import {
+  GATEWAY_SETTLEMENT_CURRENCY,
+  isExpired,
+  toGatewayAmountMinor,
+  totalsForCheckout,
+  type StoredCheckout,
+} from "@/lib/checkout";
+
+/**
+ * Read a checkout back for the payment page.
+ *
+ * Totals are recomputed here rather than read from storage, so the number the
+ * buyer sees is produced by the same code path that will later authorise the
+ * charge. The response deliberately carries no gateway credentials.
+ */
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: { checkoutId: string } }
 ) {
   try {
-    // const session = await auth();
-    // if (!session) {
-    //   return new Response("Unauthorized", { status: 403 });
-    // }
-
-    const checkoutId = params.checkoutId;
-    if (!checkoutId || typeof checkoutId !== "string") {
-      return new Response("Invalid checkout ID", { status: 400 });
+    const { checkoutId } = params;
+    if (!ObjectId.isValid(checkoutId)) {
+      return Response.json({ error: "Invalid checkout id" }, { status: 400 });
     }
 
     const client = await db;
-    const checkouts = client.db().collection("checkouts");
-    const checkout = await checkouts.findOne({
-      _id: new ObjectId(checkoutId),
-    });
+    const database = client.db();
+
+    const checkout = (await database
+      .collection("checkouts")
+      .findOne({ _id: new ObjectId(checkoutId) })) as StoredCheckout | null;
 
     if (!checkout) {
-      return new Response("Checkout not found", { status: 404 });
+      return Response.json({ error: "Checkout not found" }, { status: 404 });
     }
 
-    const events = client.db().collection("events");
-    const event = await events.findOne({
-      _id: new ObjectId(checkout?.eventId as string),
-    });
+    // Legacy checkouts predate server-side pricing and have no `items`.
+    if (!Array.isArray(checkout.items)) {
+      return Response.json(
+        { error: "This checkout is no longer valid. Please start again." },
+        { status: 409 }
+      );
+    }
 
+    if (checkout.status === "paid") {
+      return Response.json(
+        { error: "This checkout has already been paid" },
+        { status: 409 }
+      );
+    }
+    if (isExpired(checkout)) {
+      return Response.json(
+        { error: "This checkout has expired. Please start again." },
+        { status: 410 }
+      );
+    }
+
+    const event = await database
+      .collection("events")
+      .findOne({ _id: checkout.eventId as ObjectId });
     if (!event) {
-      console.log("event not found");
-      return new Response("Event not found", { status: 404 });
+      return Response.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Fetch venue data
-    const venues = client.db().collection("venues");
-    const venue = await venues.findOne({
-      _id: new ObjectId(event.venue.id as string),
-    });
+    const venue = event.venue?.id
+      ? await database
+          .collection("venues")
+          .findOne({ _id: new ObjectId(String(event.venue.id)) })
+      : null;
 
-    if (!venue) {
-      console.log("venue not found");
-      return new Response("Venue not found", { status: 404 });
-    }
+    const paymentConfig = await database
+      .collection("payment_configs")
+      .findOne(
+        { userId: event.userId },
+        { projection: { paymentGateway: 1 } }
+      );
 
-    // Fetch payment gateway configuration
-    const paymentConfigs = client.db().collection("payment_configs");
-    const paymentGateway = await paymentConfigs.findOne({
-      userId: event.userId, // Assuming userId is stored in the event object
-    });
+    const totals = totalsForCheckout(checkout, event);
 
-    if (!paymentGateway) {
-      console.log("payment gateway configuration not found");
-      return new Response("Payment gateway configuration not found", {
-        status: 404,
-      });
-    }
-    const users = client.db().collection("users");
-    const user = await users.findOne({
-      _id: new ObjectId(event.userId as string), // Assuming userId is stored in the event object
-    });
-    if (!user) {
-      console.log("host not found");
-      return new Response("host not found", { status: 404 });
-    }
-
-    // Construct the response with all event details
-    const response = {
-      cart: checkout?.cart,
+    return Response.json({
+      checkoutId,
+      status: checkout.status,
+      expiresAt: checkout.expiresAt,
+      currency: checkout.currency,
+      items: checkout.items,
+      promo: checkout.promo ? { code: checkout.promo.code } : null,
+      totals,
       event: {
         _id: event._id,
         eventName: event.eventName,
@@ -79,28 +95,27 @@ export async function GET(
         timings: event.timings,
         description: event.description,
         status: event.status,
-        currency: user?.currency,
-        // Include any other event fields you have
+        currency: checkout.currency,
       },
-      venue: {
-        _id: venue._id,
-        venueName: venue.venueName,
-        city: venue.city,
-        // Include any other venue fields you have
-      },
+      venue: venue
+        ? {
+            _id: venue._id,
+            venueName: venue.venueName,
+            city: venue.city,
+            address: venue.address ?? null,
+            mapLink: venue.mapLink ?? null,
+          }
+        : null,
       paymentGateway: {
-        _id: paymentGateway._id,
-        paymentGateway: paymentGateway.paymentGateway,
-        currency: paymentGateway.paymentGateway === "razorpay" ? "INR" : "USD",
-        // Exclude sensitive information like API keys
+        provider: paymentConfig?.paymentGateway ?? "razorpay",
+        currency: GATEWAY_SETTLEMENT_CURRENCY,
+        // What the buyer will actually be charged at the gateway, converted
+        // server-side. The browser used to do this with a hardcoded rate.
+        amountMinor: toGatewayAmountMinor(totals.totalMinor, checkout.currency),
       },
-    };
-
-    return new Response(JSON.stringify(response), {
-      status: 200,
     });
   } catch (error) {
     console.error("Error fetching checkout:", error);
-    return new Response("Internal server error", { status: 500 });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

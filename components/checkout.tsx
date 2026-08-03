@@ -32,21 +32,40 @@ interface Venue {
   city: string;
 }
 
-interface CartItem {
+/** A priced line, as resolved by the server from the event record. */
+interface LineItem {
   type: string;
   quantity: number;
-  price: number;
+  unitPriceMinor: number;
+  lineTotalMinor: number;
+}
+
+/** Every figure below is computed server-side and is authoritative. */
+interface Totals {
+  subtotalMinor: number;
+  discountMinor: number;
+  netMinor: number;
+  gatewayFeeMinor: number;
+  platformFeeMinor: number;
+  totalMinor: number;
+  payoutMinor: number;
 }
 
 interface CheckoutData {
+  checkoutId: string;
+  currency: string;
+  items: LineItem[];
+  totals: Totals;
+  promo: { code: string } | null;
   event: Event;
-  venue: Venue;
-  cart: CartItem[];
-  paymentGateway?: {
+  venue: Venue | null;
+  paymentGateway: {
+    provider: string;
     currency: string;
-    // other payment gateway fields
+    amountMinor: number;
   };
 }
+
 interface PromoResponse {
   success: boolean;
   message: string;
@@ -55,17 +74,22 @@ interface PromoResponse {
     discountType: string;
     discountValue: number;
   };
-  calculation?: {
-    originalAmount: number;
-    discountAmount: number;
-    finalAmount: number;
-  };
+  totals?: Totals;
 }
+
 interface CustomerInfo {
   firstName: string;
   lastName: string;
   phone: string;
   email: string;
+}
+
+/** Render minor units (paise/cents) in the checkout's currency. */
+function formatMinor(minor: number, currency: string): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(minor / 100);
 }
 
 export function Checkout() {
@@ -85,7 +109,6 @@ export function Checkout() {
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const [discountAmount, setDiscountAmount] = useState(0);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -114,21 +137,17 @@ export function Checkout() {
     try {
       const response = await axios.post<PromoResponse>(
         `/api/checkout/${checkoutId}/validate-coupon`,
-        {
-          eventId: checkoutData?.event._id,
-          couponCode: couponCode.trim(),
-        }
+        { couponCode: couponCode.trim() }
       );
 
       const data = response.data;
-      if (data.success) {
-        setCouponMessage({
-          type: "success",
-          message: data.message,
-        });
-        // Store the USD discount amount
-        const usdDiscountAmount = data.calculation?.discountAmount || 0;
-        setDiscountAmount(usdDiscountAmount);
+      if (data.success && data.totals) {
+        setCouponMessage({ type: "success", message: data.message });
+        // The server returns freshly recomputed totals; adopt them wholesale
+        // rather than adjusting a local figure.
+        setCheckoutData((prev) =>
+          prev ? { ...prev, totals: data.totals! } : prev
+        );
         toast.success("Coupon applied successfully!");
       }
     } catch (error: any) {
@@ -138,7 +157,6 @@ export function Checkout() {
         type: "error",
         message: errorMessage,
       });
-      setDiscountAmount(0);
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -148,46 +166,32 @@ export function Checkout() {
     setCustomerInfo((prev) => ({ ...prev, [id]: value }));
   };
 
-  const subTotal = checkoutData.cart.reduce((total, ticket) => {
-    return total + ticket.quantity * ticket.price;
-  }, 0);
+  const { totals, currency } = checkoutData;
 
-  const paymentGatewayFee = subTotal * 0.03;
-
-  const total = subTotal + paymentGatewayFee - discountAmount;
   const handlePaymentSuccess = async (paymentResponse: any) => {
     try {
-      // First verify the payment
-      await axios.post("/api/checkout/razorpay/verify-payment", {
-        ...paymentResponse,
-        checkoutId,
-      });
+      // One call: the server verifies the signature with Razorpay, recomputes
+      // the amount from the stored checkout, reserves stock and issues tickets.
+      const response = await axios.post(
+        `/api/checkout/${checkoutId}/confirm`,
+        {
+          razorpay_order_id: paymentResponse.razorpay_order_id,
+          razorpay_payment_id: paymentResponse.razorpay_payment_id,
+          razorpay_signature: paymentResponse.razorpay_signature,
+          customerInfo,
+        }
+      );
 
-      // Then create order and tickets
-      const orderData = {
-        checkoutId,
-        paymentId: paymentResponse.razorpay_payment_id,
-        orderId: paymentResponse.razorpay_order_id,
-        customerInfo,
-        cart: checkoutData.cart,
-        event: checkoutData.event,
-        venue: checkoutData.venue,
-        subTotal,
-        paymentGatewayFee,
-        discountAmount,
-        totalAmount: total,
-      };
-
-      const response = await axios.post("/api/orders/create", orderData);
       toast.success("Payment successful! Redirecting to order confirmation...");
-      // Redirect to success page with order ID
       router.push(
         `/checkout/${checkoutId}/success?orderId=${response.data.orderId}`
       );
-    } catch (error) {
-      console.error("Order creation failed:", error);
-      toast.error("Payment successful but order creation failed");
-      alert("Payment successful but order creation failed");
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.error ??
+        "We could not confirm your payment. Please contact support with your payment id.";
+      console.error("Order confirmation failed:", error);
+      toast.error(message);
     }
   };
   const validateForm = () => {
@@ -228,22 +232,16 @@ export function Checkout() {
 
     setIsLoading(true);
     try {
-      const amount =
-        checkoutData.event.currency === "INR"
-          ? Math.round(total)
-          : Math.round(total * 86);
+      // The amount is no longer sent — the server derives it from the checkout.
       const response = await axios.post("/api/checkout/razorpay/create-order", {
-        amount,
         checkoutId,
-        customerInfo,
-        currency: "INR", // Always use INR for Razorpay
       });
       const order = response.data;
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
-        currency: "INR",
+        currency: order.currency,
         name: checkoutData.event.eventName,
         description: `Tickets for ${checkoutData.event.eventName}`,
         order_id: order.id,
@@ -275,28 +273,28 @@ export function Checkout() {
           error: "Payment initiation failed",
         }
       );
-    } catch (error) {
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.error ?? "Payment initiation failed";
       console.error("Payment initiation failed:", error);
-      alert("Payment initiation failed");
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatPrice = (amount: number, forceINR: boolean = false) => {
-    if (checkoutData?.event.currency === "INR") {
-      return `₹${amount}`;
-    }
+  const formatPrice = (minor: number) => formatMinor(minor, currency);
 
-    if (forceINR) {
-      const inrAmount = amount * 86;
-      return `₹${inrAmount.toFixed(2)}`;
-    }
+  /** Only meaningful when the event isn't already priced in the gateway's currency. */
+  const gatewayNotice =
+    checkoutData.paymentGateway.currency !== currency
+      ? `Charged as ${formatMinor(
+          checkoutData.paymentGateway.amountMinor,
+          checkoutData.paymentGateway.currency
+        )} at checkout`
+      : null;
 
-    return `$${amount}`;
-  };
-
-  const { event, venue, cart } = checkoutData;
+  const { event, venue, items } = checkoutData;
   return (
     <div className="relative w-full min-h-screen">
       <div className="fixed top-0 left-0 right-0 bottom-0 z-0">
@@ -332,19 +330,21 @@ export function Checkout() {
                     {event.timings[0].startTime} - {event.timings[0].endTime}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  <span className="text-foreground">
-                    {venue.venueName}, {venue.city}
-                  </span>
-                </div>
+                {venue && (
+                  <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                    <MapPin className="w-4 h-4 text-primary" />
+                    <span className="text-foreground">
+                      {venue.venueName}, {venue.city}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Ticket Cards */}
-            {cart.map((item, index) => (
+            {items.map((item) => (
               <Card
-                key={index}
+                key={item.type}
                 className="w-full max-w-3xl mx-auto border-primary/20 bg-card/50 backdrop-blur-sm"
               >
                 <CardContent className="p-6">
@@ -371,15 +371,15 @@ export function Checkout() {
                         Price per Ticket
                       </Label>
                       <div className="text-2xl font-bold">
-                        {formatPrice(item.price)}
+                        {formatPrice(item.unitPriceMinor)}
                       </div>
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium text-primary">
-                        Total Cost
+                        Line Total
                       </Label>
                       <div className="text-2xl font-bold text-secondary">
-                        {formatPrice(total)}
+                        {formatPrice(item.lineTotalMinor)}
                       </div>
                     </div>
                   </div>
@@ -499,29 +499,30 @@ export function Checkout() {
               )}
             </div>
           </div>
-          <div className="flex items-center justify-between text-xl">
-            <div className="font-bold text-primary">Total</div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-secondary">
-                {formatPrice(total)}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                (Approx. {formatPrice(total, true)} at checkout)
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Summary */}
           {/* Payment Summary */}
           <div className="grid gap-4 bg-card/30 p-6 rounded-lg backdrop-blur-sm">
             <div className="flex items-center justify-between text-lg">
               <div className="text-muted-foreground">Ticket Cost</div>
-              <div className="font-bold">{formatPrice(subTotal)}</div>
+              <div className="font-bold">
+                {formatPrice(totals.subtotalMinor)}
+              </div>
             </div>
-            <div className="flex items-center justify-between text-lg">
-              <div className="text-muted-foreground">Payment Gateway Fee</div>
-              <div className="font-bold">{formatPrice(paymentGatewayFee)}</div>
-            </div>
+            {totals.gatewayFeeMinor > 0 && (
+              <div className="flex items-center justify-between text-lg">
+                <div className="text-muted-foreground">Payment Gateway Fee</div>
+                <div className="font-bold">
+                  {formatPrice(totals.gatewayFeeMinor)}
+                </div>
+              </div>
+            )}
+            {totals.platformFeeMinor > 0 && (
+              <div className="flex items-center justify-between text-lg">
+                <div className="text-muted-foreground">Platform Fee</div>
+                <div className="font-bold">
+                  {formatPrice(totals.platformFeeMinor)}
+                </div>
+              </div>
+            )}
 
             {/* Coupon Section */}
             <div className="space-y-4 py-4">
@@ -563,11 +564,11 @@ export function Checkout() {
               )}
             </div>
 
-            {discountAmount > 0 && (
+            {totals.discountMinor > 0 && (
               <div className="flex items-center justify-between text-lg">
                 <div className="text-green-500">Discount Applied</div>
                 <div className="font-bold text-green-500">
-                  -{formatPrice(discountAmount)}
+                  -{formatPrice(totals.discountMinor)}
                 </div>
               </div>
             )}
@@ -578,11 +579,13 @@ export function Checkout() {
               <div className="font-bold text-primary">Total</div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-secondary">
-                  {formatPrice(total)}
+                  {formatPrice(totals.totalMinor)}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  (Approx. {formatPrice(total, true)} at checkout)
-                </div>
+                {gatewayNotice && (
+                  <div className="text-sm text-muted-foreground">
+                    {gatewayNotice}
+                  </div>
+                )}
               </div>
             </div>
           </div>

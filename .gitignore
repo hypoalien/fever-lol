@@ -35,3 +35,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.env*
+
+# exported user data / PII — never commit
+users-export.csv
+*.pii.csv
